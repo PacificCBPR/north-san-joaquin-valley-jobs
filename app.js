@@ -1,0 +1,1408 @@
+/* Central Valley Jobs — D3 Treemap
+   Color system matches karpathy.ai/jobs (green = good, red = risky/low)
+   Data: BLS OEWS 2024 metro area (regional wages) + BLS EP 2022-32 projections */
+
+// ── BLS 2022-2032 Employment Projections ──────────────────────────────────────
+const EP_DATA = {
+  // Computer & Information Technology
+  "15-1252": { growth: 25.7,  education: "Bachelor's degree" },
+  "15-1212": { growth: 31.5,  education: "Bachelor's degree" },
+  "15-2051": { growth: 35.2,  education: "Bachelor's degree" },
+  "15-1251": { growth: -10.7, education: "Bachelor's degree" },
+  "15-1211": { growth: 10.2,  education: "Bachelor's degree" },
+  "15-1232": { growth: 9.7,   education: "Bachelor's degree" },
+  "15-1244": { growth: 16.3,  education: "Bachelor's degree" },
+  "15-1299": { growth: 15.0,  education: "Bachelor's degree" },
+  // Management
+  "11-3031": { growth: 16.0,  education: "Bachelor's degree" },
+  "11-3021": { growth: 15.2,  education: "Bachelor's degree" },
+  "11-1011": { growth: 5.5,   education: "Bachelor's degree" },
+  "11-1021": { growth: 6.0,   education: "Bachelor's degree" },
+  "11-2021": { growth: 7.0,   education: "Bachelor's degree" },
+  "11-3111": { growth: 8.0,   education: "Bachelor's degree" },
+  "11-9013": { growth: 5.0,   education: "Bachelor's degree" },
+  "11-9021": { growth: 4.0,   education: "Bachelor's degree" },
+  "11-9111": { growth: 6.0,   education: "Bachelor's degree" },
+  // Business & Financial
+  "13-2061": { growth: 18.6,  education: "Bachelor's degree" },
+  "13-2011": { growth: 4.4,   education: "Bachelor's degree" },
+  "13-1071": { growth: 6.0,   education: "Bachelor's degree" },
+  "13-1111": { growth: 10.0,  education: "Bachelor's degree" },
+  "13-2051": { growth: 13.0,  education: "Bachelor's degree" },
+  "13-1041": { growth: 4.0,   education: "Bachelor's degree" },
+  // Healthcare Practitioners
+  "29-1171": { growth: 45.7,  education: "Master's degree" },
+  "29-1071": { growth: 27.6,  education: "Master's degree" },
+  "29-1111": { growth: 6.2,   education: "Bachelor's degree" },
+  "29-1141": { growth: 6.0,   education: "Bachelor's degree" },
+  "29-1211": { growth: 3.0,   education: "Doctoral or professional degree" },
+  "29-1051": { growth: 5.0,   education: "Doctoral or professional degree" },
+  "29-2061": { growth: 7.0,   education: "Associate's degree" },
+  "29-2034": { growth: 6.0,   education: "Associate's degree" },
+  "29-1181": { growth: 12.0,  education: "Master's degree" },
+  "29-1122": { growth: 8.0,   education: "Master's degree" },
+  "29-1123": { growth: 17.0,  education: "Doctoral or professional degree" },
+  "29-1127": { growth: 11.0,  education: "Master's degree" },
+  // Healthcare Support
+  "31-1120": { growth: 22.4,  education: "No formal educational credential" },
+  "31-2011": { growth: 25.6,  education: "Associate's degree" },
+  "31-9092": { growth: 9.0,   education: "Postsecondary nondegree award" },
+  "31-1131": { growth: 8.0,   education: "Postsecondary nondegree award" },
+  // Community & Social Services
+  "21-1018": { growth: 18.6,  education: "Bachelor's degree" },
+  "21-1021": { growth: 11.0,  education: "Master's degree" },
+  "21-1022": { growth: 9.0,   education: "Bachelor's degree" },
+  "21-1093": { growth: 8.0,   education: "Bachelor's degree" },
+  // Education
+  "25-2011": { growth: 14.9,  education: "Bachelor's degree" },
+  "25-2021": { growth: 1.4,   education: "Bachelor's degree" },
+  "25-2031": { growth: 1.4,   education: "Bachelor's degree" },
+  "25-2022": { growth: 1.4,   education: "Bachelor's degree" },
+  "25-3031": { growth: 7.0,   education: "Bachelor's degree" },
+  "25-9045": { growth: 9.0,   education: "Bachelor's degree" },
+  // Legal
+  "23-2011": { growth: 13.8,  education: "Associate's degree" },
+  "23-1011": { growth: 8.0,   education: "Doctoral or professional degree" },
+  // Food Preparation
+  "35-1011": { growth: 15.3,  education: "High school diploma or equivalent" },
+  "35-1012": { growth: 10.0,  education: "No formal educational credential" },
+  "35-2014": { growth: 9.0,   education: "No formal educational credential" },
+  "35-3031": { growth: 8.0,   education: "No formal educational credential" },
+  "35-3041": { growth: 7.0,   education: "No formal educational credential" },
+  "35-9021": { growth: 6.0,   education: "No formal educational credential" },
+  // Construction & Extraction
+  "47-2111": { growth: 11.1,  education: "High school diploma or equivalent" },
+  "47-2061": { growth: 5.1,   education: "No formal educational credential" },
+  "47-2031": { growth: 2.0,   education: "High school diploma or equivalent" },
+  "47-2152": { growth: 2.4,   education: "High school diploma or equivalent" },
+  "47-2051": { growth: 4.0,   education: "High school diploma or equivalent" },
+  "47-2073": { growth: 3.5,   education: "No formal educational credential" },
+  "47-1011": { growth: 4.0,   education: "High school diploma or equivalent" },
+  // Installation, Maintenance & Repair
+  "49-9041": { growth: 16.0,  education: "High school diploma or equivalent" },
+  "49-3023": { growth: 5.0,   education: "Postsecondary nondegree award" },
+  "49-9071": { growth: 6.0,   education: "High school diploma or equivalent" },
+  "49-9051": { growth: 5.0,   education: "Postsecondary nondegree award" },
+  // Transportation
+  "53-3032": { growth: 4.0,   education: "High school diploma or equivalent" },
+  "53-3033": { growth: 8.3,   education: "No formal educational credential" },
+  "53-3031": { growth: 3.0,   education: "No formal educational credential" },
+  "53-7062": { growth: 5.6,   education: "No formal educational credential" },
+  "53-7065": { growth: 7.2,   education: "No formal educational credential" },
+  "53-6021": { growth: 3.0,   education: "High school diploma or equivalent" },
+  // Farming
+  "45-2092": { growth: 3.2,   education: "No formal educational credential" },
+  "45-2041": { growth: 4.0,   education: "No formal educational credential" },
+  "45-1011": { growth: 3.5,   education: "High school diploma or equivalent" },
+  // Sales
+  "41-2011": { growth: -10.1, education: "No formal educational credential" },
+  "41-2031": { growth: -3.0,  education: "No formal educational credential" },
+  "41-3031": { growth: 5.0,   education: "High school diploma or equivalent" },
+  "41-9041": { growth: -17.9, education: "No formal educational credential" },
+  "41-4012": { growth: 3.0,   education: "High school diploma or equivalent" },
+  // Office & Administrative Support
+  "43-4051": { growth: -5.2,  education: "High school diploma or equivalent" },
+  "43-6014": { growth: -7.0,  education: "High school diploma or equivalent" },
+  "43-3031": { growth: -5.9,  education: "Some college, no degree" },
+  "43-9061": { growth: -6.4,  education: "High school diploma or equivalent" },
+  "43-9021": { growth: -16.7, education: "High school diploma or equivalent" },
+  "43-5061": { growth: -4.0,  education: "High school diploma or equivalent" },
+  "43-4171": { growth: -5.0,  education: "High school diploma or equivalent" },
+  "43-6011": { growth: -6.0,  education: "High school diploma or equivalent" },
+  // Protective Services
+  "33-3051": { growth: 3.3,   education: "High school diploma or equivalent" },
+  "33-3012": { growth: -10.0, education: "High school diploma or equivalent" },
+  "33-9032": { growth: 4.0,   education: "High school diploma or equivalent" },
+  "33-1011": { growth: 3.0,   education: "High school diploma or equivalent" },
+  // Production
+  "51-3022": { growth: 4.0,   education: "High school diploma or equivalent" },
+  "51-1011": { growth: 3.0,   education: "High school diploma or equivalent" },
+  "51-4121": { growth: 2.0,   education: "High school diploma or equivalent" },
+  "51-2092": { growth: 3.0,   education: "High school diploma or equivalent" },
+  // Personal Care & Service
+  "39-9011": { growth: 22.0,  education: "No formal educational credential" },
+  "39-5012": { growth: 7.0,   education: "Postsecondary nondegree award" },
+  "39-9021": { growth: 12.0,  education: "No formal educational credential" },
+  // Building Maintenance
+  "37-2011": { growth: 4.0,   education: "No formal educational credential" },
+  "37-3011": { growth: 3.0,   education: "No formal educational credential" },
+};
+
+const EP_GROUP_FALLBACK = {
+  "11": { growth: 6.0,  education: "Bachelor's degree" },
+  "13": { growth: 7.0,  education: "Bachelor's degree" },
+  "15": { growth: 15.0, education: "Bachelor's degree" },
+  "17": { growth: 5.0,  education: "Bachelor's degree" },
+  "19": { growth: 6.0,  education: "Bachelor's degree" },
+  "21": { growth: 8.0,  education: "Bachelor's degree" },
+  "23": { growth: 7.0,  education: "Doctoral or professional degree" },
+  "25": { growth: 4.0,  education: "Bachelor's degree" },
+  "27": { growth: 3.0,  education: "Bachelor's degree" },
+  "29": { growth: 7.0,  education: "Bachelor's degree" },
+  "31": { growth: 8.0,  education: "Postsecondary nondegree award" },
+  "33": { growth: 3.0,  education: "High school diploma or equivalent" },
+  "35": { growth: 7.0,  education: "No formal educational credential" },
+  "37": { growth: 4.0,  education: "No formal educational credential" },
+  "39": { growth: 6.0,  education: "Postsecondary nondegree award" },
+  "41": { growth: 1.0,  education: "High school diploma or equivalent" },
+  "43": { growth: -4.0, education: "High school diploma or equivalent" },
+  "45": { growth: 4.0,  education: "No formal educational credential" },
+  "47": { growth: 3.5,  education: "High school diploma or equivalent" },
+  "49": { growth: 4.0,  education: "High school diploma or equivalent" },
+  "51": { growth: 3.0,  education: "High school diploma or equivalent" },
+  "53": { growth: 4.0,  education: "No formal educational credential" },
+};
+
+function getEP(code) {
+  if (EP_DATA[code]) return EP_DATA[code];
+  const prefix = code ? code.slice(0, 2) : null;
+  return prefix && EP_GROUP_FALLBACK[prefix] ? EP_GROUP_FALLBACK[prefix] : null;
+}
+
+// ── Color system (matches karpathy.ai/jobs exactly) ───────────────────────────
+// green = good/safe/high-pay/high-edu, red = risky/declining/low-pay/low-edu
+
+function boostContrast(t) {
+  const c = (t - 0.5) * 2;
+  return Math.sign(c) * Math.pow(Math.abs(c), 0.55) / 2 + 0.5;
+}
+
+function greenRedColor(t, a = 1) {
+  t = boostContrast(Math.max(0, Math.min(1, t)));
+  let r, g, b;
+  if (t < 0.5) {
+    const s = t / 0.5;
+    r = Math.round(30 + s * 200); g = Math.round(180 - s * 20); b = Math.round(40 - s * 20);
+  } else {
+    const s = (t - 0.5) / 0.5;
+    r = Math.round(230 + s * 25); g = Math.round(160 - s * 130); b = Math.round(20 - s * 5);
+  }
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+// AI Exposure: 0 = green (safe), 10 = red (high risk)
+function exposureColor(v, a = 1) {
+  return v == null ? `rgba(35,35,35,${a})` : greenRedColor(v / 10, a);
+}
+
+// BLS Outlook: positive = green, declining = red
+// Maps range [-12, +12] to [red, green]
+function outlookColor(v, a = 1) {
+  return v == null ? `rgba(35,35,35,${a})` : greenRedColor(1 - Math.max(0, Math.min(1, (v + 12) / 24)), a);
+}
+
+// Pay: high = green, low = red (log scale $25K–$250K)
+function payColor(v, a = 1) {
+  if (v == null) return `rgba(35,35,35,${a})`;
+  const t = 1 - (Math.log(Math.max(25000, Math.min(250000, v))) - Math.log(25000))
+              / (Math.log(250000) - Math.log(25000));
+  return greenRedColor(t, a);
+}
+
+const EDU_LEVELS = [
+  "No formal educational credential",
+  "High school diploma or equivalent",
+  "Postsecondary nondegree award",
+  "Some college, no degree",
+  "Associate's degree",
+  "Bachelor's degree",
+  "Master's degree",
+  "Doctoral or professional degree",
+];
+
+const EDU_SHORT = {
+  "No formal educational credential": "No cred.",
+  "High school diploma or equivalent": "High school",
+  "Postsecondary nondegree award":     "Nondegree",
+  "Some college, no degree":           "Some college",
+  "Associate's degree":                "Associate's",
+  "Bachelor's degree":                 "Bachelor's",
+  "Master's degree":                   "Master's",
+  "Doctoral or professional degree":   "Doctoral",
+};
+
+// Education: doctoral = green (highest idx), no credential = red (idx 0)
+function eduColor(edu, a = 1) {
+  if (!edu) return `rgba(35,35,35,${a})`;
+  const idx = EDU_LEVELS.findIndex(e => e.toLowerCase() === edu.toLowerCase());
+  return idx < 0 ? `rgba(35,35,35,${a})` : greenRedColor(1 - idx / (EDU_LEVELS.length - 1), a);
+}
+
+function getColor(o, metric) {
+  if (metric === "ai")        return exposureColor(o.ai_exposure);
+  if (metric === "growth")    return outlookColor(o.growth_rate);
+  if (metric === "wage")      return payColor(o.median_wage);
+  if (metric === "education") return eduColor(o.education);
+  return "rgba(35,35,35,1)";
+}
+
+
+// ── Stats bar constants ───────────────────────────────────────────────────────
+
+const OUTLOOK_TIERS = [
+  { label: "Declining (<0%)",    min: -Infinity, max: 0,        getC: () => outlookColor(-6)   },
+  { label: "Slow (0–3%)",        min: 0,         max: 3,        getC: () => outlookColor(1.5)  },
+  { label: "Average (4–7%)",     min: 3,         max: 7,        getC: () => outlookColor(5)    },
+  { label: "Fast (8–14%)",       min: 7,         max: 14,       getC: () => outlookColor(10)   },
+  { label: "Much faster (15%+)", min: 14,        max: Infinity, getC: () => outlookColor(20)   },
+];
+
+const AI_TIERS = [
+  { label: "Low (0–3)",      min: 0, max: 4,    getC: () => exposureColor(1.5) },
+  { label: "Moderate (4–6)", min: 4, max: 7,    getC: () => exposureColor(4.5) },
+  { label: "High (7–10)",    min: 7, max: 10.1, getC: () => exposureColor(8.5) },
+];
+
+const PAY_BANDS = [
+  { label: "<$35K",    min: 0,      max: 35000   },
+  { label: "$35–50K",  min: 35000,  max: 50000   },
+  { label: "$50–75K",  min: 50000,  max: 75000   },
+  { label: "$75–100K", min: 75000,  max: 100000  },
+  { label: "$100K+",   min: 100000, max: Infinity },
+];
+
+// ── Stats helpers ─────────────────────────────────────────────────────────────
+
+function fmtJobs(n) {
+  if (!n && n !== 0) return "—";
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
+  if (n >= 1e3) return Math.round(n / 1e3) + "K";
+  return n.toLocaleString();
+}
+function fmtPct(v) { return v == null ? "—" : (v > 0 ? "+" : "") + v.toFixed(1) + "%"; }
+function fmtWage(v) { return v == null ? "—" : "$" + Math.round(v / 1000) + "K"; }
+
+function wAvg(items, key) {
+  let sw = 0, swv = 0;
+  for (const o of items) {
+    const v = o[key], w = o.employment || 0;
+    if (v != null && isFinite(v)) { swv += v * w; sw += w; }
+  }
+  return sw > 0 ? swv / sw : null;
+}
+
+function byTier(items, tiers, key) {
+  return tiers.map(tier => {
+    const matched = items.filter(o => {
+      const v = o[key];
+      if (v == null) return false;
+      return v >= tier.min && (tier.max === Infinity ? true : v < tier.max);
+    });
+    return { ...tier, jobs: matched.reduce((s, o) => s + o.employment, 0), items: matched };
+  });
+}
+
+function byBand(items, bands, key) {
+  return bands.map(band => {
+    const matched = items.filter(o => {
+      const v = o[key];
+      return v != null && v >= band.min && (band.max === Infinity ? true : v < band.max);
+    });
+    return { ...band, jobs: matched.reduce((s, o) => s + o.employment, 0), items: matched };
+  });
+}
+
+function byEdu(items) {
+  return EDU_LEVELS.map((level, idx) => {
+    const matched = items.filter(o => o.education && o.education.toLowerCase() === level.toLowerCase());
+    return {
+      label: EDU_SHORT[level] || level, level, idx,
+      jobs: matched.reduce((s, o) => s + o.employment, 0),
+      items: matched,
+    };
+  }).filter(g => g.jobs > 0);
+}
+
+// ── Stats bar DOM builders ────────────────────────────────────────────────────
+
+function mkStat(label, main, mainColor, sub) {
+  const d = document.createElement("div");
+  d.className = "stat-block";
+  d.innerHTML = `<div class="stat-label">${label}</div>
+    <div class="stat-main"${mainColor ? ` style="color:${mainColor}"` : ""}>${main}</div>
+    ${sub ? `<div class="stat-sub">${sub}</div>` : ""}`;
+  return d;
+}
+
+function mkSep() {
+  const d = document.createElement("div"); d.className = "stat-sep"; return d;
+}
+
+// Short label shown under each histogram bar
+function tierShortLabel(t) {
+  const l = t.label || "";
+  if (l.startsWith("Declin"))     return "Dec";
+  if (l.startsWith("Slow"))       return "Slow";
+  if (l.startsWith("Average"))    return "Avg";
+  if (l.startsWith("Fast"))       return "Fast";
+  if (l.startsWith("Much"))       return "15%+";
+  if (l.startsWith("Low"))        return "Low";
+  if (l.startsWith("Moderate"))   return "Mod";
+  if (l.startsWith("High"))       return "High";
+  // Pay bands: use label directly (already short)
+  return l.replace(/[$K\s]/g, "").slice(0, 4);
+}
+
+function mkHist(label, tiers) {
+  const max = Math.max(...tiers.map(t => t.jobs || 0), 1);
+  const cols = tiers.map(t => {
+    const h = Math.max(2, Math.round((t.jobs || 0) / max * 28));
+    const pct = max > 0 ? Math.round((t.jobs || 0) / max * 100) : 0;
+    const c = t.getC ? t.getC() : "#444";
+    const sl = tierShortLabel(t);
+    return `<div class="hist-col" title="${t.label}: ${fmtJobs(t.jobs)} jobs">
+      <div class="hist-bar" style="height:${h}px;background:${c}"></div>
+      <div class="hist-lbl">${sl}</div>
+    </div>`;
+  }).join("");
+  const d = document.createElement("div");
+  d.className = "stat-block stat-hist";
+  d.innerHTML = `<div class="stat-label">${label}</div><div class="hist-bars">${cols}</div>`;
+  return d;
+}
+
+function mkTiers(label, tiers, total) {
+  let rows = `<div class="stat-label">${label}</div>`;
+  for (const t of tiers) {
+    if (!t.jobs) continue;
+    const pct = Math.round(t.jobs / total * 100);
+    rows += `<div class="tier-row">
+      <i class="tier-dot" style="background:${t.getC ? t.getC() : "#444"}"></i>
+      <span class="tier-nm">${t.label}</span>
+      <b class="tier-ct">${fmtJobs(t.jobs)}</b>
+      <span class="tier-pc">${pct}%</span>
+    </div>`;
+  }
+  const d = document.createElement("div");
+  d.className = "stat-block stat-tiers";
+  d.innerHTML = rows;
+  return d;
+}
+
+function mkCross(label, bands, valFmt, colorFn) {
+  // Bar width = proportional to absolute value of avgVal (shows magnitude)
+  // Bar color = metric color (shows direction: green=good, red=bad)
+  const withJobs = bands.filter(b => b.jobs > 0 && b.avgVal != null);
+  const maxAbs = Math.max(...withJobs.map(b => Math.abs(b.avgVal)), 0.01);
+  let rows = `<div class="stat-label">${label}</div>`;
+  for (const b of bands) {
+    if (!b.jobs) continue;
+    const val = b.avgVal;
+    const bw = val != null ? Math.max(3, Math.round(Math.abs(val) / maxAbs * 52)) : 0;
+    const c = colorFn ? colorFn(val) : "#555";
+    const jobPct = "(" + fmtJobs(b.jobs) + " jobs)";
+    rows += `<div class="cross-row" title="${b.label}: ${valFmt(val)} · ${jobPct}">
+      <span class="cross-nm">${b.label}</span>
+      <span class="cross-bar" style="width:${bw}px;background:${c}"></span>
+      <b class="cross-vl">${valFmt(val)}</b>
+    </div>`;
+  }
+  const d = document.createElement("div");
+  d.className = "stat-block stat-cross";
+  d.innerHTML = rows;
+  return d;
+}
+
+// ── Stats bar render ──────────────────────────────────────────────────────────
+
+function renderStats(enriched, metric) {
+  const bar = document.getElementById("stats-bar");
+  if (!bar) return;
+  bar.innerHTML = "";
+  const ap = el => bar.appendChild(el);
+
+  const total = enriched.reduce((s, o) => s + o.employment, 0);
+
+  // Block 1: Total Jobs (always)
+  ap(mkStat("TOTAL JOBS", fmtJobs(total), null, `${enriched.length} occupations`));
+  ap(mkSep());
+
+  if (metric === "growth") {
+    const avg = wAvg(enriched, "growth_rate");
+    ap(mkStat("AVG. OUTLOOK", fmtPct(avg), avg != null ? (avg >= 0 ? "#4ade80" : "#f87171") : null, "job-weighted"));
+    ap(mkSep());
+
+    const tiers = byTier(enriched, OUTLOOK_TIERS, "growth_rate");
+    ap(mkHist("JOBS BY OUTLOOK", tiers));
+    ap(mkSep());
+    ap(mkTiers("OUTLOOK TIERS", tiers, total));
+    ap(mkSep());
+
+    const payBands = byBand(enriched, PAY_BANDS, "median_wage").map(b => ({
+      ...b, avgVal: wAvg(b.items, "growth_rate"),
+    }));
+    ap(mkCross("OUTLOOK BY PAY", payBands, fmtPct, outlookColor));
+    ap(mkSep());
+
+    const eduBands = byEdu(enriched).map(b => ({ ...b, avgVal: wAvg(b.items, "growth_rate") }));
+    ap(mkCross("OUTLOOK BY EDUCATION", eduBands, fmtPct, outlookColor));
+    ap(mkSep());
+
+    const declining = enriched.filter(o => o.growth_rate != null && o.growth_rate < 0)
+      .reduce((s, o) => s + o.employment, 0);
+    const growing = enriched.filter(o => o.growth_rate != null && o.growth_rate > 0)
+      .reduce((s, o) => s + o.employment, 0);
+    ap(mkStat("DECLINING JOBS", fmtJobs(declining), "#f87171", "negative outlook"));
+    ap(mkSep());
+    ap(mkStat("GROWING JOBS", fmtJobs(growing), "#4ade80", "positive outlook"));
+
+  } else if (metric === "ai") {
+    const avg = wAvg(enriched, "ai_exposure");
+    ap(mkStat("AVG. EXPOSURE", avg != null ? avg.toFixed(1) + "/10" : "—", exposureColor(avg), "job-weighted"));
+    ap(mkSep());
+
+    const tiers = byTier(enriched, AI_TIERS, "ai_exposure");
+    ap(mkHist("JOBS BY EXPOSURE", tiers));
+    ap(mkSep());
+    ap(mkTiers("EXPOSURE TIERS", tiers, total));
+    ap(mkSep());
+
+    const payBands = byBand(enriched, PAY_BANDS, "median_wage").map(b => ({
+      ...b, avgVal: wAvg(b.items, "ai_exposure"),
+    }));
+    ap(mkCross("EXPOSURE BY PAY", payBands, v => v != null ? v.toFixed(1) : "—", exposureColor));
+    ap(mkSep());
+
+    const eduBands = byEdu(enriched).map(b => ({ ...b, avgVal: wAvg(b.items, "ai_exposure") }));
+    ap(mkCross("EXPOSURE BY EDUCATION", eduBands, v => v != null ? v.toFixed(1) : "—", exposureColor));
+    ap(mkSep());
+
+    const lowExp = enriched.filter(o => o.ai_exposure != null && o.ai_exposure < 4)
+      .reduce((s, o) => s + o.employment, 0);
+    const highExp = enriched.filter(o => o.ai_exposure != null && o.ai_exposure >= 7)
+      .reduce((s, o) => s + o.employment, 0);
+    ap(mkStat("LOW EXPOSURE", fmtJobs(lowExp), "#4ade80", "score 0–3"));
+    ap(mkSep());
+    ap(mkStat("HIGH EXPOSURE", fmtJobs(highExp), "#f87171", "score 7–10"));
+
+  } else if (metric === "wage") {
+    const avg = wAvg(enriched, "median_wage");
+    ap(mkStat("AVG. WAGE", fmtWage(avg), payColor(avg), "job-weighted · regional"));
+    ap(mkSep());
+
+    const payBands = byBand(enriched, PAY_BANDS, "median_wage");
+    const payTiers = payBands.map(b => {
+      const mid = b.max === Infinity ? b.min * 1.5 : (b.min + b.max) / 2;
+      return { ...b, getC: () => payColor(mid) };
+    });
+    ap(mkHist("JOBS BY PAY", payTiers));
+    ap(mkSep());
+    ap(mkTiers("PAY BANDS", payTiers, total));
+    ap(mkSep());
+
+    const payByOutlook = byBand(enriched, PAY_BANDS, "median_wage").map(b => ({
+      ...b, avgVal: wAvg(b.items, "growth_rate"),
+    }));
+    ap(mkCross("PAY BY OUTLOOK", payByOutlook, fmtPct, outlookColor));
+    ap(mkSep());
+
+    const payByEdu = byEdu(enriched).map(b => ({ ...b, avgVal: wAvg(b.items, "median_wage") }));
+    ap(mkCross("PAY BY EDUCATION", payByEdu, fmtWage, payColor));
+    ap(mkSep());
+
+    const lowWage = enriched.filter(o => o.median_wage != null && o.median_wage < 50000)
+      .reduce((s, o) => s + o.employment, 0);
+    const highWage = enriched.filter(o => o.median_wage != null && o.median_wage >= 75000)
+      .reduce((s, o) => s + o.employment, 0);
+    ap(mkStat("LOW WAGE (<$50K)", fmtJobs(lowWage), "#f87171", "below median"));
+    ap(mkSep());
+    ap(mkStat("HIGH WAGE ($75K+)", fmtJobs(highWage), "#4ade80", "above median"));
+
+  } else if (metric === "education") {
+    const eduGroups = byEdu(enriched).sort((a, b) => b.jobs - a.jobs);
+    const top = eduGroups[0];
+    ap(mkStat("TOP EDU LEVEL", top ? (EDU_SHORT[top.level] || top.level) : "—", eduColor(top ? top.level : null), "by employment"));
+    ap(mkSep());
+
+    const eduTiers = byEdu(enriched).map(b => ({ ...b, getC: () => eduColor(b.level) }));
+    ap(mkHist("JOBS BY EDUCATION", eduTiers));
+    ap(mkSep());
+    ap(mkTiers("EDUCATION LEVELS", eduTiers, total));
+    ap(mkSep());
+
+    const eduByPay = byEdu(enriched).map(b => ({ ...b, avgVal: wAvg(b.items, "median_wage") }));
+    ap(mkCross("EDUCATION BY PAY", eduByPay, fmtWage, payColor));
+    ap(mkSep());
+
+    const eduByOutlook = byEdu(enriched).map(b => ({ ...b, avgVal: wAvg(b.items, "growth_rate") }));
+    ap(mkCross("EDUCATION BY OUTLOOK", eduByOutlook, fmtPct, outlookColor));
+    ap(mkSep());
+
+    const lowEdu = enriched.filter(o => {
+      const idx = EDU_LEVELS.findIndex(e => o.education && e.toLowerCase() === o.education.toLowerCase());
+      return idx >= 0 && idx <= 1;
+    }).reduce((s, o) => s + o.employment, 0);
+    const highEdu = enriched.filter(o => {
+      const idx = EDU_LEVELS.findIndex(e => o.education && e.toLowerCase() === o.education.toLowerCase());
+      return idx >= 5;
+    }).reduce((s, o) => s + o.employment, 0);
+    ap(mkStat("NO/HS DEGREE", fmtJobs(lowEdu), "#f87171", "entry-level"));
+    ap(mkSep());
+    ap(mkStat("BACHELOR'S+", fmtJobs(highEdu), "#4ade80", "higher education"));
+  }
+}
+
+// ── Legend ────────────────────────────────────────────────────────────────────
+
+function renderLegend(metric) {
+  const el = document.getElementById("legend");
+  el.innerHTML = "";
+
+  if (metric === "education") {
+    const row = document.createElement("span");
+    row.className = "legend-swatch-row";
+    EDU_LEVELS.forEach((level, idx) => {
+      const c = greenRedColor(1 - idx / (EDU_LEVELS.length - 1));
+      row.innerHTML += `<span class="legend-swatch">
+        <span class="legend-swatch-box" style="background:${c}"></span>
+        <span class="legend-label">${EDU_SHORT[level]}</span>
+      </span>`;
+    });
+    el.appendChild(row);
+  } else {
+    // Build gradient using actual color functions for accuracy
+    const cfg = {
+      ai:     { fn: t => exposureColor(t * 10), low: "Low Exposure (0)", high: "High Exposure (10)" },
+      growth: { fn: t => outlookColor(-12 + t * 24), low: "Declining", high: "Growing fast" },
+      wage:   { fn: t => payColor(25000 * Math.pow(10, t * Math.log10(250000 / 25000))), low: "< $25K", high: "$250K+" },
+    };
+    const c = cfg[metric] || cfg.ai;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 130; canvas.height = 7;
+    canvas.className = "legend-bar";
+    const ctx = canvas.getContext("2d");
+    const grad = ctx.createLinearGradient(0, 0, 130, 0);
+    for (let i = 0; i <= 12; i++) grad.addColorStop(i / 12, c.fn(i / 12));
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 130, 7);
+
+    const wrap = document.createElement("span");
+    wrap.style.cssText = "display:flex;align-items:center;gap:5px;";
+    const lowLbl = document.createElement("span");
+    lowLbl.className = "legend-label";
+    lowLbl.textContent = c.low;
+    wrap.appendChild(lowLbl);
+    wrap.appendChild(canvas);
+    const highLbl = document.createElement("span");
+    highLbl.className = "legend-label";
+    highLbl.textContent = c.high;
+    wrap.appendChild(highLbl);
+    el.appendChild(wrap);
+  }
+
+  // N/A swatch
+  const s = document.createElement("span");
+  s.className = "legend-swatch";
+  s.style.marginLeft = "8px";
+  s.innerHTML = `<span class="legend-swatch-box" style="background:rgba(35,35,35,1);border:1px solid #374151;"></span>
+    <span class="legend-label" style="color:#6b7280;">N/A</span>`;
+  el.appendChild(s);
+}
+
+// ── OOH URL builder ──────────────────────────────────────────────────────────
+// Constructs a BLS Occupational Outlook Handbook URL from SOC code + title.
+// The OOH URL pattern is: bls.gov/ooh/{category}/{slug}.htm
+
+const OOH_CAT = {
+  "11": "management",
+  "13": "business-and-financial",
+  "15": "computer-and-information-technology",
+  "17": "architecture-and-engineering",
+  "19": "life-physical-and-social-science",
+  "21": "community-and-social-service",
+  "23": "legal",
+  "25": "education-training-and-library",
+  "27": "arts-and-design",
+  "29": "healthcare",
+  "31": "healthcare",
+  "33": "protective-service",
+  "35": "food-preparation-and-serving",
+  "37": "building-and-grounds-cleaning",
+  "39": "personal-care-and-service",
+  "41": "sales",
+  "43": "office-and-administrative-support",
+  "45": "farming-fishing-and-forestry",
+  "47": "construction-and-extraction",
+  "49": "installation-maintenance-and-repair",
+  "51": "production",
+  "53": "transportation-and-material-moving",
+};
+
+// Comprehensive SOC-to-OOH page mapping (OOH URLs differ from SOC titles)
+const OOH_OVERRIDES = {
+  // ── Management (11) ──────────────────────────────────────────────────────
+  "11-1011": "management/top-executives",
+  "11-1021": "management/top-executives",
+  "11-2011": "management/advertising-promotions-and-marketing-managers",
+  "11-2021": "management/advertising-promotions-and-marketing-managers",
+  "11-2022": "management/sales-managers",
+  "11-2031": "management/public-relations-managers",
+  "11-2032": "management/public-relations-managers",
+  "11-2033": "management/fundraising-managers",
+  "11-3012": "management/administrative-services-and-facilities-managers",
+  "11-3013": "management/administrative-services-and-facilities-managers",
+  "11-3021": "management/computer-and-information-systems-managers",
+  "11-3031": "management/financial-managers",
+  "11-3051": "management/industrial-production-managers",
+  "11-3061": "management/purchasing-managers-buyers-and-purchasing-agents",
+  "11-3071": "management/transportation-storage-and-distribution-managers",
+  "11-3111": "management/compensation-and-benefits-managers",
+  "11-3121": "management/human-resources-managers",
+  "11-3131": "management/training-and-development-managers",
+  "11-9013": "management/farmers-ranchers-and-other-agricultural-managers",
+  "11-9021": "management/construction-managers",
+  "11-9031": "management/education-and-childcare-administrators-preschool-and-daycare",
+  "11-9032": "management/elementary-and-secondary-school-education-administrators",
+  "11-9033": "management/postsecondary-education-administrators",
+  "11-9039": false,
+  "11-9041": "management/architectural-and-engineering-managers",
+  "11-9051": "management/food-service-managers",
+  "11-9072": "management/property-real-estate-and-community-association-managers",
+  "11-9081": "management/lodging-managers",
+  "11-9111": "management/medical-and-health-services-managers",
+  "11-9121": "management/natural-sciences-managers",
+  "11-9141": "management/property-real-estate-and-community-association-managers",
+  "11-9151": "management/social-and-community-service-managers",
+  "11-9161": "management/emergency-management-directors",
+  "11-9199": false,
+  // ── Business & Financial (13) ─────────────────────────────────────────────
+  "13-1020": "business-and-financial/buyers-and-purchasing-agents",
+  "13-1031": "business-and-financial/claims-adjusters-appraisers-examiners-and-investigators",
+  "13-1041": "business-and-financial/compliance-officers",
+  "13-1051": "business-and-financial/cost-estimators",
+  "13-1071": "business-and-financial/human-resources-specialists",
+  "13-1075": "business-and-financial/labor-relations-specialists",
+  "13-1081": "business-and-financial/logisticians",
+  "13-1082": "business-and-financial/project-management-specialists",
+  "13-1111": "business-and-financial/management-analysts",
+  "13-1121": "business-and-financial/meeting-convention-and-event-planners",
+  "13-1131": "business-and-financial/fundraisers",
+  "13-1141": "business-and-financial/compensation-benefits-and-job-analysis-specialists",
+  "13-1151": "business-and-financial/training-and-development-specialists",
+  "13-1161": "business-and-financial/market-research-analysts",
+  "13-1199": false,
+  "13-2011": "business-and-financial/accountants-and-auditors",
+  "13-2020": "business-and-financial/appraisers-and-assessors-of-real-estate",
+  "13-2031": "business-and-financial/budget-analysts",
+  "13-2041": "business-and-financial/credit-analysts",
+  "13-2051": "business-and-financial/financial-analysts",
+  "13-2052": "business-and-financial/personal-financial-advisors",
+  "13-2061": "business-and-financial/financial-examiners",
+  "13-2071": "business-and-financial/loan-officers",
+  "13-2072": "business-and-financial/loan-officers",
+  "13-2081": "business-and-financial/tax-examiners-and-collectors-and-revenue-agents",
+  "13-2082": "business-and-financial/tax-preparers",
+  "13-2099": false,
+  // ── Computer & Mathematical (15) ──────────────────────────────────────────
+  "15-1211": "computer-and-information-technology/computer-systems-analysts",
+  "15-1212": "computer-and-information-technology/information-security-analysts",
+  "15-1231": "computer-and-information-technology/computer-network-architects",
+  "15-1232": "computer-and-information-technology/computer-support-specialists",
+  "15-1241": "computer-and-information-technology/computer-network-architects",
+  "15-1242": "computer-and-information-technology/database-administrators-and-architects",
+  "15-1243": "computer-and-information-technology/database-administrators-and-architects",
+  "15-1244": "computer-and-information-technology/network-and-computer-systems-administrators",
+  "15-1251": "computer-and-information-technology/software-developers",
+  "15-1252": "computer-and-information-technology/software-developers",
+  "15-1253": "computer-and-information-technology/software-quality-assurance-analysts-and-testers",
+  "15-1254": "computer-and-information-technology/web-developers-and-digital-designers",
+  "15-1255": "computer-and-information-technology/web-developers-and-digital-designers",
+  "15-1299": false,
+  "15-2031": "computer-and-information-technology/operations-research-analysts",
+  "15-2051": "computer-and-information-technology/data-scientists",
+  // ── Architecture & Engineering (17) ───────────────────────────────────────
+  "17-1011": "architecture-and-engineering/architects",
+  "17-1022": "architecture-and-engineering/surveyors",
+  "17-2051": "architecture-and-engineering/civil-engineers",
+  "17-2071": "architecture-and-engineering/electrical-and-electronics-engineers",
+  "17-2072": "architecture-and-engineering/electrical-and-electronics-engineers",
+  "17-2111": "architecture-and-engineering/health-and-safety-engineers",
+  "17-2112": "architecture-and-engineering/industrial-engineers",
+  "17-2131": "architecture-and-engineering/materials-engineers",
+  "17-2141": "architecture-and-engineering/mechanical-engineers",
+  "17-2199": false,
+  "17-3011": "architecture-and-engineering/drafters",
+  "17-3013": "architecture-and-engineering/drafters",
+  "17-3019": "architecture-and-engineering/drafters",
+  "17-3022": "architecture-and-engineering/engineering-technologists-and-technicians",
+  "17-3023": "architecture-and-engineering/electrical-and-electronics-engineering-technicians",
+  "17-3026": "architecture-and-engineering/engineering-technologists-and-technicians",
+  "17-3029": false,
+  "17-3031": "architecture-and-engineering/surveying-and-mapping-technicians",
+  // ── Life, Physical & Social Science (19) ──────────────────────────────────
+  "19-1012": "life-physical-and-social-science/agricultural-and-food-scientists",
+  "19-1013": "life-physical-and-social-science/agricultural-and-food-scientists",
+  "19-1022": "life-physical-and-social-science/microbiologists",
+  "19-1029": false,
+  "19-1042": "life-physical-and-social-science/medical-scientists",
+  "19-2031": "life-physical-and-social-science/chemists-and-materials-scientists",
+  "19-2041": "life-physical-and-social-science/environmental-scientists-and-specialists",
+  "19-3033": "life-physical-and-social-science/psychologists",
+  "19-3034": "life-physical-and-social-science/psychologists",
+  "19-3041": false,
+  "19-3051": "life-physical-and-social-science/urban-and-regional-planners",
+  "19-3099": false,
+  "19-4012": "life-physical-and-social-science/agricultural-and-food-science-technicians",
+  "19-4013": "life-physical-and-social-science/agricultural-and-food-science-technicians",
+  "19-4021": "life-physical-and-social-science/biological-technicians",
+  "19-4031": "life-physical-and-social-science/chemical-technicians",
+  "19-4042": "life-physical-and-social-science/environmental-science-and-protection-technicians",
+  "19-4071": "life-physical-and-social-science/conservation-scientists",
+  "19-4092": "life-physical-and-social-science/forensic-science-technicians",
+  "19-4099": false,
+  "19-5011": "healthcare/occupational-health-and-safety-specialists-and-technicians",
+  "19-5012": "healthcare/occupational-health-and-safety-specialists-and-technicians",
+  // ── Community & Social Service (21) ───────────────────────────────────────
+  "21-1012": "community-and-social-service/school-and-career-counselors",
+  "21-1013": "community-and-social-service/marriage-and-family-therapists",
+  "21-1015": "community-and-social-service/rehabilitation-counselors",
+  "21-1018": "community-and-social-service/substance-abuse-behavioral-disorder-and-mental-health-counselors",
+  "21-1019": false,
+  "21-1021": "community-and-social-service/social-workers",
+  "21-1022": "community-and-social-service/social-workers",
+  "21-1023": "community-and-social-service/social-workers",
+  "21-1029": "community-and-social-service/social-workers",
+  "21-1091": "community-and-social-service/health-educators",
+  "21-1093": "community-and-social-service/social-and-human-service-assistants",
+  "21-1094": "community-and-social-service/community-health-workers",
+  "21-1099": false,
+  "21-2011": "community-and-social-service/clergy",
+  "21-2021": false,
+  // ── Legal (23) ────────────────────────────────────────────────────────────
+  "23-1011": "legal/lawyers",
+  "23-2011": "legal/paralegals-and-legal-assistants",
+  "23-2093": false,
+  "23-2099": false,
+  // ── Education & Library (25) ──────────────────────────────────────────────
+  "25-1071": "education-training-and-library/postsecondary-teachers",
+  "25-1072": "education-training-and-library/postsecondary-teachers",
+  "25-1194": "education-training-and-library/career-and-technical-education-teachers",
+  "25-2011": "education-training-and-library/preschool-teachers",
+  "25-2012": "education-training-and-library/kindergarten-and-elementary-school-teachers",
+  "25-2021": "education-training-and-library/kindergarten-and-elementary-school-teachers",
+  "25-2022": "education-training-and-library/middle-school-teachers",
+  "25-2031": "education-training-and-library/high-school-teachers",
+  "25-2032": "education-training-and-library/career-and-technical-education-teachers",
+  "25-2052": "education-training-and-library/special-education-teachers",
+  "25-2057": "education-training-and-library/special-education-teachers",
+  "25-2058": "education-training-and-library/special-education-teachers",
+  "25-2059": "education-training-and-library/special-education-teachers",
+  "25-3011": "education-training-and-library/adult-literacy-and-ged-teachers",
+  "25-3021": "education-training-and-library/self-enrichment-teachers",
+  "25-3031": false,
+  "25-3041": false,
+  "25-3099": false,
+  "25-4022": "education-training-and-library/librarians",
+  "25-4031": "education-training-and-library/library-technicians-and-library-assistants",
+  "25-9031": "education-training-and-library/instructional-coordinators",
+  "25-9044": "education-training-and-library/teacher-assistants",
+  "25-9045": "education-training-and-library/teacher-assistants",
+  "25-9099": false,
+  // ── Arts, Design & Media (27) ─────────────────────────────────────────────
+  "27-1011": "arts-and-design/art-directors",
+  "27-1021": "arts-and-design/industrial-designers",
+  "27-1023": false,
+  "27-1024": "arts-and-design/graphic-designers",
+  "27-1026": false,
+  "27-2012": "entertainment-and-sports/producers-and-directors",
+  "27-2022": false,
+  "27-2023": "entertainment-and-sports/umpires-referees-and-other-sports-officials",
+  "27-3031": "media-and-communication/public-relations-specialists",
+  "27-3041": "media-and-communication/editors",
+  "27-3091": "media-and-communication/interpreters-and-translators",
+  "27-3092": false,
+  "27-4011": "arts-and-design/broadcast-and-sound-engineering-technicians",
+  "27-4021": "arts-and-design/photographers",
+  // ── Healthcare Practitioners (29) ─────────────────────────────────────────
+  "29-1011": "healthcare/chiropractors",
+  "29-1021": "healthcare/dentists",
+  "29-1031": "healthcare/dietitians-and-nutritionists",
+  "29-1041": "healthcare/optometrists",
+  "29-1051": "healthcare/pharmacists",
+  "29-1071": "healthcare/physician-assistants",
+  "29-1081": "healthcare/podiatrists",
+  "29-1122": "healthcare/occupational-therapists",
+  "29-1123": "healthcare/physical-therapists",
+  "29-1124": "healthcare/radiation-therapists",
+  "29-1125": "healthcare/recreational-therapists",
+  "29-1126": "healthcare/respiratory-therapists",
+  "29-1127": "healthcare/speech-language-pathologists",
+  "29-1128": "healthcare/audiologists",
+  "29-1131": "healthcare/veterinarians",
+  "29-1141": "healthcare/registered-nurses",
+  "29-1151": "healthcare/nurse-anesthetists-nurse-midwives-and-nurse-practitioners",
+  "29-1161": "healthcare/nurse-anesthetists-nurse-midwives-and-nurse-practitioners",
+  "29-1171": "healthcare/nurse-anesthetists-nurse-midwives-and-nurse-practitioners",
+  "29-1181": "healthcare/audiologists",
+  "29-1211": "healthcare/physicians-and-surgeons",
+  "29-1212": "healthcare/physicians-and-surgeons",
+  "29-1213": "healthcare/physicians-and-surgeons",
+  "29-1214": "healthcare/physicians-and-surgeons",
+  "29-1215": "healthcare/physicians-and-surgeons",
+  "29-1216": "healthcare/physicians-and-surgeons",
+  "29-1217": "healthcare/physicians-and-surgeons",
+  "29-1218": "healthcare/physicians-and-surgeons",
+  "29-1221": "healthcare/dentists",
+  "29-1223": "healthcare/dentists",
+  "29-1229": "healthcare/dentists",
+  "29-1241": "healthcare/physicians-and-surgeons",
+  "29-1242": "healthcare/optometrists",
+  "29-1292": "healthcare/dental-hygienists",
+  "29-2010": "healthcare/clinical-laboratory-technologists-and-technicians",
+  "29-2031": "healthcare/cardiovascular-technologists-and-technicians-and-vascular-technologists",
+  "29-2032": "healthcare/diagnostic-medical-sonographers",
+  "29-2033": "healthcare/nuclear-medicine-technologists",
+  "29-2034": "healthcare/radiologic-and-mri-technologists",
+  "29-2035": "healthcare/radiologic-and-mri-technologists",
+  "29-2042": "healthcare/emergency-medical-technicians",
+  "29-2043": "healthcare/paramedics",
+  "29-2051": false,
+  "29-2052": "healthcare/pharmacy-technicians",
+  "29-2053": "healthcare/psychiatric-technicians",
+  "29-2055": "healthcare/surgical-technologists",
+  "29-2056": "healthcare/veterinary-technologists-and-technicians",
+  "29-2057": "healthcare/dispensing-opticians",
+  "29-2061": "healthcare/licensed-practical-and-licensed-vocational-nurses",
+  "29-2072": "healthcare/medical-records-specialists",
+  "29-2081": "healthcare/dispensing-opticians",
+  "29-2099": false,
+  "29-9093": false,
+  "29-9099": false,
+  // ── Healthcare Support (31) ───────────────────────────────────────────────
+  "31-1120": "healthcare/home-health-aides-and-personal-care-aides",
+  "31-1131": "healthcare/nursing-assistants",
+  "31-1132": "healthcare/orderlies",
+  "31-2011": "healthcare/occupational-therapy-assistants-and-aides",
+  "31-2021": "healthcare/physical-therapist-assistants-and-aides",
+  "31-2022": "healthcare/physical-therapist-assistants-and-aides",
+  "31-9011": "healthcare/massage-therapists",
+  "31-9091": "healthcare/dental-assistants",
+  "31-9092": "healthcare/medical-assistants",
+  "31-9093": false,
+  "31-9094": false,
+  "31-9095": "healthcare/phlebotomists",
+  "31-9096": "healthcare/veterinary-assistants-and-laboratory-animal-caretakers",
+  "31-9097": "healthcare/phlebotomists",
+  "31-9099": false,
+  // ── Protective Service (33) ───────────────────────────────────────────────
+  "33-1011": "protective-service/police-and-detectives",
+  "33-1012": "protective-service/firefighters",
+  "33-1021": "protective-service/correctional-officers-and-bailiffs",
+  "33-1091": false,
+  "33-2011": "protective-service/firefighters",
+  "33-2021": "protective-service/fire-inspectors-and-investigators",
+  "33-3012": "protective-service/correctional-officers-and-bailiffs",
+  "33-3021": "protective-service/detectives-and-criminal-investigators",
+  "33-3051": "protective-service/police-and-detectives",
+  "33-9021": "protective-service/private-detectives-and-investigators",
+  "33-9032": "protective-service/security-guards-and-gaming-surveillance-officers",
+  "33-9091": false,
+  "33-9092": false,
+  "33-9094": false,
+  "33-9099": false,
+  // ── Food Preparation & Serving (35) ───────────────────────────────────────
+  "35-1011": "food-preparation-and-serving/chefs-and-head-cooks",
+  "35-1012": "food-preparation-and-serving/first-line-supervisors-of-food-preparation-and-serving-workers",
+  "35-2011": "food-preparation-and-serving/cooks",
+  "35-2012": "food-preparation-and-serving/cooks",
+  "35-2014": "food-preparation-and-serving/cooks",
+  "35-2015": "food-preparation-and-serving/cooks",
+  "35-2019": "food-preparation-and-serving/cooks",
+  "35-2021": "food-preparation-and-serving/food-preparation-workers",
+  "35-3011": "food-preparation-and-serving/bartenders",
+  "35-3023": "food-preparation-and-serving/fast-food-and-counter-workers",
+  "35-3031": "food-preparation-and-serving/waiters-and-waitresses",
+  "35-3041": "food-preparation-and-serving/food-servers-nonrestaurant",
+  "35-9011": "food-preparation-and-serving/dishwashers",
+  "35-9021": "food-preparation-and-serving/hosts-and-hostesses-restaurant-lounge-and-coffee-shop",
+  "35-9031": "food-preparation-and-serving/dining-room-and-cafeteria-attendants-and-bartender-helpers",
+  "35-9099": false,
+  // ── Building & Grounds Cleaning (37) ──────────────────────────────────────
+  "37-1011": "building-and-grounds-cleaning/first-line-supervisors-of-housekeeping-and-janitorial-workers",
+  "37-1012": "building-and-grounds-cleaning/first-line-supervisors-of-landscaping-lawn-service-and-groundskeeping-workers",
+  "37-2011": "building-and-grounds-cleaning/janitors-and-building-cleaners",
+  "37-2012": "building-and-grounds-cleaning/maids-and-housekeeping-cleaners",
+  "37-2021": "building-and-grounds-cleaning/pest-control-workers",
+  "37-3011": "building-and-grounds-cleaning/grounds-maintenance-workers",
+  "37-3012": "building-and-grounds-cleaning/grounds-maintenance-workers",
+  "37-3013": "building-and-grounds-cleaning/grounds-maintenance-workers",
+  "37-3019": "building-and-grounds-cleaning/grounds-maintenance-workers",
+  // ── Personal Care & Service (39) ──────────────────────────────────────────
+  "39-1014": false,
+  "39-1022": false,
+  "39-2011": "personal-care-and-service/animal-trainers",
+  "39-2021": "personal-care-and-service/nonfarm-animal-caretakers",
+  "39-3011": false,
+  "39-3031": false,
+  "39-3091": "personal-care-and-service/amusement-and-recreation-attendants",
+  "39-4021": "personal-care-and-service/funeral-service-workers",
+  "39-4031": "personal-care-and-service/funeral-service-workers",
+  "39-5012": "personal-care-and-service/barbers-hairstylists-and-cosmetologists",
+  "39-5092": "personal-care-and-service/manicurists-and-pedicurists",
+  "39-5094": "personal-care-and-service/skincare-specialists",
+  "39-6011": "personal-care-and-service/baggage-porters-bellhops-and-concierges",
+  "39-6012": "personal-care-and-service/baggage-porters-bellhops-and-concierges",
+  "39-9011": "personal-care-and-service/childcare-workers",
+  "39-9031": "personal-care-and-service/exercise-trainers-and-group-fitness-instructors",
+  "39-9032": "personal-care-and-service/recreation-workers",
+  "39-9041": "personal-care-and-service/residential-advisors",
+  "39-9099": false,
+  // ── Sales & Related (41) ──────────────────────────────────────────────────
+  "41-1011": "sales/first-line-supervisors-of-retail-sales-workers",
+  "41-1012": "sales/first-line-supervisors-of-non-retail-sales-workers",
+  "41-2011": "sales/cashiers",
+  "41-2021": "sales/counter-and-rental-clerks",
+  "41-2022": false,
+  "41-2031": "sales/retail-sales-workers",
+  "41-3011": "sales/advertising-sales-agents",
+  "41-3021": "sales/insurance-sales-agents",
+  "41-3031": "sales/securities-commodities-and-financial-services-sales-agents",
+  "41-3041": "sales/travel-agents",
+  "41-3091": "sales/real-estate-brokers-and-sales-agents",
+  "41-4011": "sales/sales-representatives-wholesale-and-manufacturing",
+  "41-4012": "sales/sales-representatives-wholesale-and-manufacturing",
+  "41-9011": "sales/demonstrators-and-product-promoters",
+  "41-9021": "sales/real-estate-brokers-and-sales-agents",
+  "41-9022": "sales/appraisers-and-assessors-of-real-estate",
+  "41-9031": "sales/sales-engineers",
+  "41-9041": "sales/telemarketers",
+  "41-9099": false,
+  // ── Office & Administrative Support (43) ──────────────────────────────────
+  "43-1011": "office-and-administrative-support/first-line-supervisors-of-office-and-administrative-support-workers",
+  "43-2011": false,
+  "43-3011": "office-and-administrative-support/bill-and-account-collectors",
+  "43-3021": "office-and-administrative-support/billing-and-posting-clerks",
+  "43-3031": "office-and-administrative-support/bookkeeping-accounting-and-auditing-clerks",
+  "43-3051": "office-and-administrative-support/payroll-and-timekeeping-clerks",
+  "43-3061": false,
+  "43-3071": "office-and-administrative-support/tellers",
+  "43-4031": false,
+  "43-4051": "office-and-administrative-support/customer-service-representatives",
+  "43-4061": "office-and-administrative-support/eligibility-interviewers-government-programs",
+  "43-4071": "office-and-administrative-support/file-clerks",
+  "43-4081": "office-and-administrative-support/hotel-motel-and-resort-desk-clerks",
+  "43-4111": false,
+  "43-4121": false,
+  "43-4131": false,
+  "43-4141": false,
+  "43-4151": false,
+  "43-4161": "office-and-administrative-support/human-resources-assistants",
+  "43-4171": "office-and-administrative-support/receptionists-and-information-clerks",
+  "43-4199": false,
+  "43-5011": "office-and-administrative-support/couriers-and-messengers",
+  "43-5021": "office-and-administrative-support/couriers-and-messengers",
+  "43-5031": "office-and-administrative-support/dispatchers-except-police-fire-and-ambulance",
+  "43-5032": "office-and-administrative-support/dispatchers-except-police-fire-and-ambulance",
+  "43-5051": "office-and-administrative-support/postal-service-workers",
+  "43-5052": "office-and-administrative-support/postal-service-workers",
+  "43-5053": "office-and-administrative-support/postal-service-workers",
+  "43-5061": "office-and-administrative-support/production-planning-and-expediting-clerks",
+  "43-5071": "office-and-administrative-support/shipping-receiving-and-inventory-clerks",
+  "43-5111": false,
+  "43-6011": "office-and-administrative-support/secretaries-and-administrative-assistants",
+  "43-6012": "office-and-administrative-support/secretaries-and-administrative-assistants",
+  "43-6013": "office-and-administrative-support/secretaries-and-administrative-assistants",
+  "43-6014": "office-and-administrative-support/secretaries-and-administrative-assistants",
+  "43-9021": "office-and-administrative-support/data-entry-keyers",
+  "43-9022": false,
+  "43-9041": "office-and-administrative-support/insurance-claims-and-policy-processing-clerks",
+  "43-9051": "office-and-administrative-support/mail-clerks-and-mail-machine-operators",
+  "43-9061": "office-and-administrative-support/general-office-clerks",
+  "43-9199": false,
+  // ── Farming, Fishing & Forestry (45) ──────────────────────────────────────
+  "45-1011": "farming-fishing-and-forestry/first-line-supervisors-of-farming-fishing-and-forestry-workers",
+  "45-2011": false,
+  "45-2041": "farming-fishing-and-forestry/agricultural-workers",
+  "45-2091": "farming-fishing-and-forestry/agricultural-workers",
+  "45-2092": "farming-fishing-and-forestry/agricultural-workers",
+  "45-2093": "farming-fishing-and-forestry/agricultural-workers",
+  "45-2099": "farming-fishing-and-forestry/agricultural-workers",
+  "45-4022": "farming-fishing-and-forestry/logging-workers",
+  // ── Construction & Extraction (47) ────────────────────────────────────────
+  "47-1011": "construction-and-extraction/first-line-supervisors-of-construction-trades-and-extraction-workers",
+  "47-2021": "construction-and-extraction/brickmasons-blockmasons-stonemasons-and-tile-and-marble-setters",
+  "47-2022": "construction-and-extraction/brickmasons-blockmasons-stonemasons-and-tile-and-marble-setters",
+  "47-2031": "construction-and-extraction/carpenters",
+  "47-2042": "construction-and-extraction/flooring-installers-and-tile-and-marble-setters",
+  "47-2044": "construction-and-extraction/tile-and-stone-setters",
+  "47-2051": "construction-and-extraction/cement-masons-and-concrete-finishers",
+  "47-2061": "construction-and-extraction/construction-laborers-and-helpers",
+  "47-2073": "construction-and-extraction/plumbers-pipefitters-and-steamfitters",
+  "47-2081": "construction-and-extraction/drywall-and-ceiling-tile-installers-and-tapers",
+  "47-2082": "construction-and-extraction/drywall-and-ceiling-tile-installers-and-tapers",
+  "47-2111": "construction-and-extraction/electricians",
+  "47-2121": "construction-and-extraction/glaziers",
+  "47-2131": "construction-and-extraction/insulation-workers",
+  "47-2132": "construction-and-extraction/insulation-workers",
+  "47-2141": "construction-and-extraction/painters-construction-and-maintenance",
+  "47-2151": "construction-and-extraction/plumbers-pipefitters-and-steamfitters",
+  "47-2152": "construction-and-extraction/plumbers-pipefitters-and-steamfitters",
+  "47-2161": "construction-and-extraction/plasterers-and-stucco-masons",
+  "47-2181": "construction-and-extraction/roofers",
+  "47-2211": "construction-and-extraction/structural-iron-and-steel-workers",
+  "47-2221": "construction-and-extraction/sheet-metal-workers",
+  "47-3011": "construction-and-extraction/helpers-construction-trades",
+  "47-3015": "construction-and-extraction/helpers-construction-trades",
+  "47-3019": "construction-and-extraction/helpers-construction-trades",
+  "47-4011": "construction-and-extraction/construction-and-building-inspectors",
+  "47-4021": "construction-and-extraction/elevator-and-escalator-installers-and-repairers",
+  "47-4031": false,
+  "47-4041": "construction-and-extraction/hazardous-materials-removal-workers",
+  "47-4051": "construction-and-extraction/highway-maintenance-workers",
+  "47-4071": false,
+  "47-4090": false,
+  // ── Installation, Maintenance & Repair (49) ───────────────────────────────
+  "49-1011": "installation-maintenance-and-repair/first-line-supervisors-of-mechanics-installers-and-repairers",
+  "49-2011": "installation-maintenance-and-repair/computer-and-office-machine-repairers",
+  "49-2022": "installation-maintenance-and-repair/telecommunications-equipment-installers-and-repairers",
+  "49-2094": false,
+  "49-2095": false,
+  "49-2098": "installation-maintenance-and-repair/security-and-fire-alarm-systems-installers",
+  "49-3011": "installation-maintenance-and-repair/aircraft-mechanics-and-service-technicians",
+  "49-3021": "installation-maintenance-and-repair/automotive-body-and-glass-repairers",
+  "49-3022": "installation-maintenance-and-repair/automotive-service-technicians-and-mechanics",
+  "49-3023": "installation-maintenance-and-repair/automotive-service-technicians-and-mechanics",
+  "49-3031": "installation-maintenance-and-repair/bus-and-truck-mechanics-and-diesel-engine-specialists",
+  "49-3041": "installation-maintenance-and-repair/farm-equipment-mechanics-and-service-technicians",
+  "49-3042": "installation-maintenance-and-repair/mobile-heavy-equipment-mechanics-except-engines",
+  "49-3051": false,
+  "49-3053": false,
+  "49-3093": false,
+  "49-9012": false,
+  "49-9021": "installation-maintenance-and-repair/heating-air-conditioning-and-refrigeration-mechanics-and-installers",
+  "49-9041": "installation-maintenance-and-repair/industrial-machinery-mechanics-millwrights-and-maintenance-workers",
+  "49-9043": "installation-maintenance-and-repair/maintenance-and-repair-workers-general",
+  "49-9044": "installation-maintenance-and-repair/millwrights",
+  "49-9051": "installation-maintenance-and-repair/electrical-power-line-installers-and-repairers",
+  "49-9052": "installation-maintenance-and-repair/line-installers-and-repairers",
+  "49-9062": "installation-maintenance-and-repair/medical-equipment-repairers",
+  "49-9071": "installation-maintenance-and-repair/maintenance-and-repair-workers-general",
+  "49-9098": false,
+  "49-9099": false,
+  // ── Production (51) ───────────────────────────────────────────────────────
+  "51-1011": "production/first-line-supervisors-of-production-and-operating-workers",
+  "51-2028": false,
+  "51-2090": false,
+  "51-3011": "production/bakers",
+  "51-3021": "production/butchers-and-meat-cutters",
+  "51-3022": "production/butchers-and-meat-cutters",
+  "51-3023": "production/butchers-and-meat-cutters",
+  "51-3091": "production/food-processing-workers",
+  "51-3092": "production/food-processing-workers",
+  "51-3093": "production/food-processing-workers",
+  "51-3099": false,
+  "51-4021": false,
+  "51-4031": false,
+  "51-4033": false,
+  "51-4041": "production/machinists",
+  "51-4072": false,
+  "51-4081": false,
+  "51-4111": "production/tool-and-die-makers",
+  "51-4121": "production/welding-soldering-and-brazing-workers",
+  "51-4122": "production/welding-soldering-and-brazing-workers",
+  "51-4193": false,
+  "51-5111": "production/printing-workers",
+  "51-5112": "production/printing-workers",
+  "51-5113": "production/printing-workers",
+  "51-6011": false,
+  "51-6021": false,
+  "51-6031": "production/sewing-machine-operators",
+  "51-6052": false,
+  "51-7011": false,
+  "51-7041": false,
+  "51-7042": false,
+  "51-8021": false,
+  "51-8031": "production/water-and-wastewater-treatment-plant-and-system-operators",
+  "51-8099": false,
+  "51-9011": false,
+  "51-9012": false,
+  "51-9021": false,
+  "51-9022": false,
+  "51-9023": false,
+  "51-9032": false,
+  "51-9041": false,
+  "51-9061": "production/quality-control-inspectors",
+  "51-9081": false,
+  "51-9111": "production/packaging-and-filling-machine-operators-and-tenders",
+  "51-9124": false,
+  "51-9161": "production/computer-numerically-controlled-tool-operators-and-programmers",
+  "51-9162": "production/computer-numerically-controlled-tool-operators-and-programmers",
+  "51-9192": false,
+  "51-9195": false,
+  "51-9196": false,
+  "51-9198": false,
+  "51-9199": false,
+  // ── Transportation & Material Moving (53) ─────────────────────────────────
+  "53-1041": "transportation-and-material-moving/supervisors-of-transportation-and-material-moving-workers",
+  "53-1047": "transportation-and-material-moving/supervisors-of-transportation-and-material-moving-workers",
+  "53-2012": "transportation-and-material-moving/commercial-pilots",
+  "53-2021": "transportation-and-material-moving/air-traffic-controllers",
+  "53-2031": "transportation-and-material-moving/flight-attendants",
+  "53-3031": "transportation-and-material-moving/bus-drivers",
+  "53-3032": "transportation-and-material-moving/heavy-and-tractor-trailer-truck-drivers",
+  "53-3033": "transportation-and-material-moving/delivery-truck-drivers-and-driver-sales-workers",
+  "53-3051": "transportation-and-material-moving/taxi-drivers-and-chauffeurs",
+  "53-3052": "transportation-and-material-moving/taxi-drivers-and-chauffeurs",
+  "53-3053": "transportation-and-material-moving/taxi-drivers-and-chauffeurs",
+  "53-3099": false,
+  "53-6021": "transportation-and-material-moving/parking-attendants",
+  "53-6031": false,
+  "53-6051": false,
+  "53-7011": false,
+  "53-7021": "transportation-and-material-moving/material-moving-machine-operators",
+  "53-7051": "transportation-and-material-moving/industrial-truck-and-tractor-operators",
+  "53-7061": "transportation-and-material-moving/cleaners-of-vehicles-and-equipment",
+  "53-7062": "transportation-and-material-moving/hand-laborers-and-freight-stock-and-material-movers",
+  "53-7063": false,
+  "53-7064": "transportation-and-material-moving/packers-and-packagers-hand",
+  "53-7065": "transportation-and-material-moving/stockers-and-order-fillers",
+  "53-7081": "transportation-and-material-moving/refuse-and-recyclable-material-collectors",
+  "53-7199": false,
+};
+
+
+function oohUrl(code, title) {
+  const ov = OOH_OVERRIDES[code];
+  if (ov === false) return null;           // explicitly no OOH page → fall back to bls_url
+  if (ov) return `https://www.bls.gov/ooh/${ov}.htm`;
+  const cat = OOH_CAT[code.slice(0, 2)];
+  if (!cat) return null;
+  const slug = title
+    .toLowerCase()
+    .replace(/,?\s+(all other|nec|nos|except.*)$/i, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .trim()
+    .replace(/\s+/g, "-");
+  return `https://www.bls.gov/ooh/${cat}/${slug}.htm`;
+}
+
+// ── Hierarchy & enrichment ────────────────────────────────────────────────────
+
+function enrich(occupations) {
+  return occupations
+    .filter(o => o.code && !o.code.endsWith("0000") && o.employment > 0)
+    .map(o => {
+      const ep = getEP(o.code);
+      return {
+        ...o,
+        growth_rate: (ep && ep.growth    != null) ? ep.growth    : o.growth_rate,
+        education:   (ep && ep.education != null) ? ep.education : o.education,
+      };
+    });
+}
+
+function buildHierarchy(enriched) {
+  const groups = {};
+  for (const o of enriched) {
+    if (!groups[o.group]) groups[o.group] = { name: o.group, children: [] };
+    groups[o.group].children.push(o);
+  }
+  return { name: "root", children: Object.values(groups).filter(g => g.children.length > 0) };
+}
+
+// ── Text helper ───────────────────────────────────────────────────────────────
+
+function truncate(text, maxW, fs) {
+  const chars = Math.floor(maxW / (fs * 0.56));
+  if (text.length <= chars) return text;
+  return text.slice(0, Math.max(chars - 1, 3)) + "…";
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+
+let currentMetric = "ai";
+let allData = null;
+let enrichedCache = null;
+
+// ── Render ────────────────────────────────────────────────────────────────────
+
+function render(data, metric) {
+  if (!enrichedCache) enrichedCache = enrich(data.occupations);
+  renderStats(enrichedCache, metric);
+
+  const container = document.getElementById("treemap");
+  container.innerHTML = "";
+
+  const SIDE_PAD = 20; // matches #treemap padding: 0 20px in CSS
+  const W = container.clientWidth - SIDE_PAD * 2;
+  // Higher ratio → smaller individual boxes, more breathing room (we have ~500 occupations vs original ~200)
+  const H = Math.round(W * 3.4);
+  container.style.height = (H + 24) + "px"; // +24 for bottom breathing room
+
+  const svg = d3.select(container).append("svg").attr("width", W).attr("height", H);
+
+  const root = d3.hierarchy(buildHierarchy(enrichedCache))
+    .sum(d => d.employment || 0)
+    .sort((a, b) => b.value - a.value);
+
+  // Tighter padding = more space for actual boxes (matches original layout feel)
+  d3.treemap()
+    .size([W, H])
+    .paddingOuter(8)
+    .paddingInner(2)
+    .paddingTop(16)
+    .round(true)(root);
+
+  const tooltip = document.getElementById("tooltip");
+
+  // Group labels — overlaid at top of each group section
+  svg.selectAll(".group-label")
+    .data(root.children || [])
+    .join("text")
+    .attr("class", "group-label")
+    .attr("x", d => d.x0 + 4)
+    .attr("y", d => d.y0 + 10)
+    .text(d => {
+      const w = d.x1 - d.x0;
+      if (w < 60) return "";
+      const lbl = d.data.name.toUpperCase();
+      const max = Math.floor(w / 6);
+      return lbl.length > max ? lbl.slice(0, Math.max(max - 1, 4)) + "…" : lbl;
+    });
+
+  // Leaf cells
+  const leaves = root.leaves();
+
+  const cell = svg.selectAll(".cell")
+    .data(leaves)
+    .join("rect")
+    .attr("class", "cell")
+    .attr("x", d => d.x0).attr("y", d => d.y0)
+    .attr("width",  d => d.x1 - d.x0)
+    .attr("height", d => d.y1 - d.y0)
+    .attr("fill",   d => getColor(d.data, metric))
+    .attr("stroke", "#111827")
+    .attr("stroke-width", 0.5);
+
+  // Cell labels — matching original style: title on line 1, "growth% · Xjobs" on line 2
+  svg.selectAll(".cell-text-g")
+    .data(leaves)
+    .join("g")
+    .attr("class", "cell-text-g")
+    .attr("pointer-events", "none")
+    .each(function(d) {
+      const w = d.x1 - d.x0, h = d.y1 - d.y0;
+      if (w < 40 || h < 18) return;
+      const fs = w > 150 ? 13 : w > 90 ? 11 : 10;
+      const g = d3.select(this);
+      const x = d.x0 + w / 2;
+
+      // Show two lines only if box is tall enough
+      const twoLine = h > 38 && w > 60;
+      const titleY = d.y0 + (twoLine ? h / 2 - 2 : h / 2 + fs * 0.35);
+
+      g.append("text")
+        .attr("class", "cell-text")
+        .attr("x", x).attr("y", titleY)
+        .attr("text-anchor", "middle")
+        .attr("font-size", fs)
+        .text(truncate(d.data.title, w - 10, fs));
+
+      if (twoLine) {
+        const o = d.data;
+        let metricStr = "";
+        if (metric === "ai") {
+          metricStr = o.ai_exposure != null ? o.ai_exposure.toFixed(0) + "/10" : "";
+        } else if (metric === "growth") {
+          metricStr = o.growth_rate != null
+            ? (o.growth_rate > 0 ? "+" : "") + o.growth_rate.toFixed(0) + "%"
+            : "";
+        } else if (metric === "wage") {
+          metricStr = o.median_wage != null ? fmtWage(o.median_wage) : "";
+        } else if (metric === "education") {
+          metricStr = o.education ? (EDU_SHORT[o.education] || o.education) : "";
+        }
+        const jobStr = fmtJobs(o.employment) + " jobs";
+        const sub = [metricStr, jobStr].filter(Boolean).join(" · ");
+        g.append("text")
+          .attr("class", "cell-text")
+          .attr("x", x).attr("y", titleY + fs + 2)
+          .attr("text-anchor", "middle")
+          .attr("font-size", fs - 2)
+          .attr("opacity", 0.72)
+          .text(sub);
+      }
+    });
+
+  // Tooltip — pure CSS hover (opacity), no D3 stroke manipulation
+  cell
+    .on("mousemove", (event, d) => {
+      const o = d.data;
+      const wage     = o.median_wage ? "$" + o.median_wage.toLocaleString() + " (regional)" : "N/A";
+      const growth   = o.growth_rate != null ? (o.growth_rate > 0 ? "+" : "") + o.growth_rate.toFixed(1) + "%" : "N/A";
+      const edu      = o.education ? (EDU_SHORT[o.education] || o.education) : "N/A";
+      const exposure = o.ai_exposure != null ? o.ai_exposure.toFixed(1) + " / 10" : "N/A";
+      const emp      = o.employment ? o.employment.toLocaleString() : "N/A";
+
+      tooltip.style.display = "block";
+      tooltip.style.left = Math.min(event.clientX + 14, window.innerWidth - 310) + "px";
+      tooltip.style.top  = Math.min(event.clientY + 14, window.innerHeight - 220) + "px";
+      tooltip.innerHTML = `
+        <strong>${o.title}</strong>
+        <div class="metric">Employment (3 metros) <span>${emp}</span></div>
+        <div class="metric">Median Wage <span>${wage}</span></div>
+        <div class="metric">BLS Outlook 2022–32 <span>${growth}</span></div>
+        <div class="metric">Typical Education <span>${edu}</span></div>
+        <div class="metric">AI Exposure Score <span>${exposure}</span></div>
+        ${o.ai_rationale ? `<div class="divider"></div><div class="rationale">${o.ai_rationale}</div>` : ""}
+        <div class="divider"></div>
+        <div class="rationale" style="font-style:normal;color:#60a5fa;">Click to open BLS Outlook Handbook ↗</div>
+      `;
+    })
+    .on("mouseleave", () => { tooltip.style.display = "none"; })
+    .on("click", (_, d) => {
+      const url = oohUrl(d.data.code, d.data.title);
+      window.open(url || d.data.bls_url, "_blank");
+    });
+
+  renderLegend(metric);
+}
+
+
+// ── Bootstrap (data embedded — no fetch needed) ───────────────────────────────
+
+(function() {
+  var data = {"metros":["Stockton-Lodi, CA","Merced, CA","Modesto, CA"],"generated":"2026-04-24","count":462,"occupations":[{"code":"11-1011","title":"Chief Executives","group":"Management","major_code":"11","employment":670,"median_wage":197537,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Strategic leadership requires human judgment and relationship-building that AI cannot replicate; however, AI is rapidly taking over data analysis, forecasting, and reporting that support executive decisions.","bls_url":"https://www.bls.gov/oes/current/oes111011.htm"},{"code":"11-1021","title":"General and Operations Managers","group":"Management","major_code":"11","employment":7510,"median_wage":104560,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"General and operations management requires cross-functional judgment and people leadership; AI handles increasing portions of reporting, forecasting, and scheduling support but strategic coordination remains human.","bls_url":"https://www.bls.gov/oes/current/oes111021.htm"},{"code":"11-1031","title":"Legislators","group":"Management","major_code":"11","employment":70,"median_wage":48545,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Legislative work requires political judgment, constituent relations, and negotiation; AI can assist with research and drafting but core democratic functions are human.","bls_url":"https://www.bls.gov/oes/current/oes111031.htm"},{"code":"11-2021","title":"Marketing Managers","group":"Management","major_code":"11","employment":540,"median_wage":138709,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Marketing management is predominantly knowledge and digital work; AI accelerates market analysis, content creation, and campaign optimization substantially.","bls_url":"https://www.bls.gov/oes/current/oes112021.htm"},{"code":"11-2022","title":"Sales Managers","group":"Management","major_code":"11","employment":2240,"median_wage":98452,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Sales management requires team leadership and relationship management; AI tools assist with forecasting, pipeline analysis, and coaching but team coordination is human-centered.","bls_url":"https://www.bls.gov/oes/current/oes112022.htm"},{"code":"11-2032","title":"Public Relations Managers","group":"Management","major_code":"11","employment":80,"median_wage":143117,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Public relations management involves communications strategy and media relations; AI assists with writing, monitoring, and analytics but reputation management requires human judgment.","bls_url":"https://www.bls.gov/oes/current/oes112032.htm"},{"code":"11-2033","title":"Fundraising Managers","group":"Management","major_code":"11","employment":50,"median_wage":123030,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Fundraising management requires donor relationship cultivation and strategy; AI aids prospect research and communications but human relationship-building is central.","bls_url":"https://www.bls.gov/oes/current/oes112033.htm"},{"code":"11-3012","title":"Administrative Services Managers","group":"Management","major_code":"11","employment":880,"median_wage":102539,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Administrative services management involves coordination of facilities and office operations; AI assists with scheduling and reporting but operational oversight requires human judgment.","bls_url":"https://www.bls.gov/oes/current/oes113012.htm"},{"code":"11-3013","title":"Facilities Managers","group":"Management","major_code":"11","employment":530,"median_wage":112871,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Facilities management blends physical site oversight with administrative coordination; AI assists with scheduling and compliance tracking but on-site judgment is essential.","bls_url":"https://www.bls.gov/oes/current/oes113013.htm"},{"code":"11-3021","title":"Computer and Information Systems Managers","group":"Management","major_code":"11","employment":740,"median_wage":159632,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"IT and computer systems management is a knowledge-intensive leadership role; AI accelerates technology planning, vendor evaluation, and operational reporting.","bls_url":"https://www.bls.gov/oes/current/oes113021.htm"},{"code":"11-3031","title":"Financial Managers","group":"Management","major_code":"11","employment":1560,"median_wage":151268,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Financial management is predominantly digital analysis and reporting; AI tools are rapidly capable at forecasting, risk analysis, and financial modeling.","bls_url":"https://www.bls.gov/oes/current/oes113031.htm"},{"code":"11-3051","title":"Industrial Production Managers","group":"Management","major_code":"11","employment":890,"median_wage":121227,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Industrial production management requires shop-floor oversight and cross-functional coordination; AI assists with scheduling and quality monitoring but physical plant management requires presence.","bls_url":"https://www.bls.gov/oes/current/oes113051.htm"},{"code":"11-3061","title":"Purchasing Managers","group":"Management","major_code":"11","employment":140,"median_wage":131312,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Purchasing management involves supply chain strategy and supplier negotiation; AI accelerates sourcing analysis, contract review, and demand forecasting.","bls_url":"https://www.bls.gov/oes/current/oes113061.htm"},{"code":"11-3071","title":"Transportation, Storage, and Distribution Managers","group":"Management","major_code":"11","employment":1390,"median_wage":96773,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Transportation, storage, and distribution management is increasingly digital; AI aids route optimization, inventory management, and logistics planning.","bls_url":"https://www.bls.gov/oes/current/oes113071.htm"},{"code":"11-3121","title":"Human Resources Managers","group":"Management","major_code":"11","employment":500,"median_wage":148922,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Human resources management blends data work with employee relations; AI automates talent analytics and compliance but people leadership remains human.","bls_url":"https://www.bls.gov/oes/current/oes113121.htm"},{"code":"11-3131","title":"Training and Development Managers","group":"Management","major_code":"11","employment":60,"median_wage":102360,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Training and development management requires instructional design and people engagement; AI assists with content creation and learning analytics but facilitation remains human.","bls_url":"https://www.bls.gov/oes/current/oes113131.htm"},{"code":"11-9013","title":"Farmers, Ranchers, and Other Agricultural Managers","group":"Management","major_code":"11","employment":150,"median_wage":88661,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Agricultural management involves physical farm oversight as well as business planning; AI aids in precision agriculture and planning but on-farm judgment is critical.","bls_url":"https://www.bls.gov/oes/current/oes119013.htm"},{"code":"11-9021","title":"Construction Managers","group":"Management","major_code":"11","employment":920,"median_wage":122281,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Construction management requires on-site coordination and client relations alongside project planning; AI tools assist with scheduling and cost estimation but site judgment is human.","bls_url":"https://www.bls.gov/oes/current/oes119021.htm"},{"code":"11-9031","title":"Education and Childcare Administrators, Preschool and Daycare","group":"Management","major_code":"11","employment":220,"median_wage":65762,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Preschool and daycare administration involves regulatory compliance and staff oversight; AI assists with reporting but child development judgment and family engagement are human.","bls_url":"https://www.bls.gov/oes/current/oes119031.htm"},{"code":"11-9032","title":"Education Administrators, Kindergarten through Secondary","group":"Management","major_code":"11","employment":1490,"median_wage":144634,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"K-12 education administration is knowledge and compliance intensive; AI aids reporting and curriculum planning but school leadership requires human presence and judgment.","bls_url":"https://www.bls.gov/oes/current/oes119032.htm"},{"code":"11-9033","title":"Education Administrators, Postsecondary","group":"Management","major_code":"11","employment":170,"median_wage":125647,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Postsecondary education administration involves policy, compliance, and stakeholder management; AI accelerates reporting and data analysis but academic leadership is human.","bls_url":"https://www.bls.gov/oes/current/oes119033.htm"},{"code":"11-9039","title":"Education Administrators, All Other","group":"Management","major_code":"11","employment":280,"median_wage":121153,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Education administrators coordinate programs and compliance; AI aids documentation and analytics.","bls_url":"https://www.bls.gov/oes/current/oes119039.htm"},{"code":"11-9041","title":"Architectural and Engineering Managers","group":"Management","major_code":"11","employment":280,"median_wage":171342,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Architectural and engineering management blends technical knowledge with project oversight; AI accelerates design review and project tracking but engineering judgment is essential.","bls_url":"https://www.bls.gov/oes/current/oes119041.htm"},{"code":"11-9051","title":"Food Service Managers","group":"Management","major_code":"11","employment":910,"median_wage":66638,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Food service management involves physical operations oversight and staff management; AI aids inventory and scheduling but kitchen management requires on-site presence.","bls_url":"https://www.bls.gov/oes/current/oes119051.htm"},{"code":"11-9072","title":"Entertainment and Recreation Managers, Except Gambling","group":"Management","major_code":"11","employment":150,"median_wage":75704,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Entertainment and recreation management requires event coordination and guest experience management; AI assists with scheduling and analytics but operational leadership is human.","bls_url":"https://www.bls.gov/oes/current/oes119072.htm"},{"code":"11-9081","title":"Lodging Managers","group":"Management","major_code":"11","employment":70,"median_wage":73672,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Lodging management involves guest service oversight and physical property management; AI aids booking and revenue management but hospitality leadership is human.","bls_url":"https://www.bls.gov/oes/current/oes119081.htm"},{"code":"11-9111","title":"Medical and Health Services Managers","group":"Management","major_code":"11","employment":1870,"median_wage":132139,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Medical and health services management is increasingly data-driven; AI assists with regulatory reporting, staffing analytics, and financial forecasting but clinical oversight requires human judgment.","bls_url":"https://www.bls.gov/oes/current/oes119111.htm"},{"code":"11-9141","title":"Property, Real Estate, and Community Association Managers","group":"Management","major_code":"11","employment":990,"median_wage":67668,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Property and real estate management combines physical property oversight with administrative and financial work; AI aids tenant communication and financial reporting.","bls_url":"https://www.bls.gov/oes/current/oes119141.htm"},{"code":"11-9151","title":"Social and Community Service Managers","group":"Management","major_code":"11","employment":530,"median_wage":76081,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Social and community service management involves program coordination and grant compliance; AI aids reporting and outcome analysis but community leadership is human.","bls_url":"https://www.bls.gov/oes/current/oes119151.htm"},{"code":"11-9199","title":"Managers, All Other","group":"Management","major_code":"11","employment":1210,"median_wage":139743,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"All other managers perform knowledge-intensive coordination and oversight; AI aids reporting and analytics broadly across management roles.","bls_url":"https://www.bls.gov/oes/current/oes119199.htm"},{"code":"13-1020","title":"Buyers and Purchasing Agents","group":"Business & Financial Operations","major_code":"13","employment":1140,"median_wage":73628,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Buyers and purchasing agents analyze market conditions and negotiate contracts; AI accelerates supplier analysis, pricing research, and purchase order management.","bls_url":"https://www.bls.gov/oes/current/oes131020.htm"},{"code":"13-1031","title":"Claims Adjusters, Examiners, and Investigators","group":"Business & Financial Operations","major_code":"13","employment":420,"median_wage":95725,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Claims adjusters, examiners, and investigators review and evaluate insurance claims; AI is rapidly capable at damage assessment, fraud detection, and claims routing.","bls_url":"https://www.bls.gov/oes/current/oes131031.htm"},{"code":"13-1041","title":"Compliance Officers","group":"Business & Financial Operations","major_code":"13","employment":920,"median_wage":76249,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Compliance officers review policies and regulatory requirements; AI tools accelerate document review, audit preparation, and regulatory monitoring.","bls_url":"https://www.bls.gov/oes/current/oes131041.htm"},{"code":"13-1051","title":"Cost Estimators","group":"Business & Financial Operations","major_code":"13","employment":860,"median_wage":79030,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Cost estimators analyze project requirements and prepare cost projections; AI accelerates material pricing, labor estimation, and historical data analysis.","bls_url":"https://www.bls.gov/oes/current/oes131051.htm"},{"code":"13-1071","title":"Human Resources Specialists","group":"Business & Financial Operations","major_code":"13","employment":2090,"median_wage":73782,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Human resources specialists perform recruiting, onboarding, and employee relations tasks; AI accelerates resume screening, job matching, and HR documentation.","bls_url":"https://www.bls.gov/oes/current/oes131071.htm"},{"code":"13-1075","title":"Labor Relations Specialists","group":"Business & Financial Operations","major_code":"13","employment":140,"median_wage":92405,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Labor relations specialists negotiate contracts and handle grievances; AI aids research and document review but negotiation requires human judgment.","bls_url":"https://www.bls.gov/oes/current/oes131075.htm"},{"code":"13-1081","title":"Logisticians","group":"Business & Financial Operations","major_code":"13","employment":590,"median_wage":82092,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Logisticians plan and coordinate supply chain operations; AI is highly capable at route optimization, inventory forecasting, and supplier management.","bls_url":"https://www.bls.gov/oes/current/oes131081.htm"},{"code":"13-1082","title":"Project Management Specialists","group":"Business & Financial Operations","major_code":"13","employment":1810,"median_wage":99457,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Project management specialists track timelines, resources, and risks; AI accelerates planning, status reporting, and risk identification substantially.","bls_url":"https://www.bls.gov/oes/current/oes131082.htm"},{"code":"13-1111","title":"Management Analysts","group":"Business & Financial Operations","major_code":"13","employment":1660,"median_wage":92590,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Management analysts research and recommend organizational improvements; the work is primarily document-intensive analysis where AI can generate, synthesize, and present findings efficiently.","bls_url":"https://www.bls.gov/oes/current/oes131111.htm"},{"code":"13-1121","title":"Meeting, Convention, and Event Planners","group":"Business & Financial Operations","major_code":"13","employment":230,"median_wage":59192,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Meeting, convention, and event planners coordinate logistics and vendor relationships; AI aids scheduling and vendor research but client management is human.","bls_url":"https://www.bls.gov/oes/current/oes131121.htm"},{"code":"13-1131","title":"Fundraisers","group":"Business & Financial Operations","major_code":"13","employment":160,"median_wage":73206,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Fundraisers cultivate donor relationships and manage campaigns; AI assists with prospect research and communications but relationship-building is central.","bls_url":"https://www.bls.gov/oes/current/oes131131.htm"},{"code":"13-1141","title":"Compensation, Benefits, and Job Analysis Specialists","group":"Business & Financial Operations","major_code":"13","employment":230,"median_wage":78062,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Compensation, benefits, and job analysis specialists conduct market research and job evaluation; AI accelerates benchmarking and documentation substantially.","bls_url":"https://www.bls.gov/oes/current/oes131141.htm"},{"code":"13-1151","title":"Training and Development Specialists","group":"Business & Financial Operations","major_code":"13","employment":1630,"median_wage":60097,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Training and development specialists design and deliver learning programs; AI aids content creation and assessment but facilitation requires human engagement.","bls_url":"https://www.bls.gov/oes/current/oes131151.htm"},{"code":"13-1161","title":"Market Research Analysts and Marketing Specialists","group":"Business & Financial Operations","major_code":"13","employment":1240,"median_wage":69776,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Market research analysts gather and interpret data to inform business decisions; analysis, visualization, and reporting are tasks where AI is already highly capable.","bls_url":"https://www.bls.gov/oes/current/oes131161.htm"},{"code":"13-1199","title":"Business Operations Specialists, All Other","group":"Business & Financial Operations","major_code":"13","employment":3850,"median_wage":80784,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"All other business operations specialists perform knowledge-intensive coordination work; AI tools are broadly applicable across analysis, reporting, and workflow automation.","bls_url":"https://www.bls.gov/oes/current/oes131199.htm"},{"code":"13-2011","title":"Accountants and Auditors","group":"Business & Financial Operations","major_code":"13","employment":3020,"median_wage":82839,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Work is almost entirely digital \u2014 reconciling accounts, preparing reports, and auditing records are all tasks where AI is rapidly proving capable.","bls_url":"https://www.bls.gov/oes/current/oes132011.htm"},{"code":"13-2020","title":"Property Appraisers and Assessors","group":"Business & Financial Operations","major_code":"13","employment":120,"median_wage":79725,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Property appraisers analyze market data and prepare valuation reports; AI accelerates comparable sales analysis and report generation but judgment and site visits remain important.","bls_url":"https://www.bls.gov/oes/current/oes132020.htm"},{"code":"13-2031","title":"Budget Analysts","group":"Business & Financial Operations","major_code":"13","employment":50,"median_wage":101740,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Budget analysts prepare and analyze financial plans; the work is primarily spreadsheet and document-based where AI tools are highly effective.","bls_url":"https://www.bls.gov/oes/current/oes132031.htm"},{"code":"13-2041","title":"Credit Analysts","group":"Business & Financial Operations","major_code":"13","employment":30,"median_wage":73130,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Credit analysts evaluate borrower risk using financial data; AI models are already transforming credit underwriting and risk scoring.","bls_url":"https://www.bls.gov/oes/current/oes132041.htm"},{"code":"13-2051","title":"Financial and Investment Analysts","group":"Business & Financial Operations","major_code":"13","employment":350,"median_wage":95131,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Financial and investment analysts research markets and prepare recommendations; data gathering, modeling, and report writing are highly amenable to AI augmentation.","bls_url":"https://www.bls.gov/oes/current/oes132051.htm"},{"code":"13-2052","title":"Personal Financial Advisors","group":"Business & Financial Operations","major_code":"13","employment":290,"median_wage":104746,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Personal financial advisors provide planning and investment guidance; AI tools accelerate portfolio analysis and planning but trust and client relationships remain human.","bls_url":"https://www.bls.gov/oes/current/oes132052.htm"},{"code":"13-2072","title":"Loan Officers","group":"Business & Financial Operations","major_code":"13","employment":550,"median_wage":76462,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Loan officers gather financial information and evaluate creditworthiness; data collection, underwriting analysis, and documentation are increasingly AI-assisted or automated.","bls_url":"https://www.bls.gov/oes/current/oes132072.htm"},{"code":"13-2081","title":"Tax Examiners and Collectors, and Revenue Agents","group":"Business & Financial Operations","major_code":"13","employment":80,"median_wage":108363,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Tax examiners and revenue agents review returns and enforce compliance; rule-based document analysis and calculation are highly AI-automatable tasks.","bls_url":"https://www.bls.gov/oes/current/oes132081.htm"},{"code":"13-2082","title":"Tax Preparers","group":"Business & Financial Operations","major_code":"13","employment":100,"median_wage":42004,"growth_rate":null,"education":null,"ai_exposure":9,"ai_rationale":"Tax preparers collect financial information and prepare returns; this is largely routine data processing and form completion where AI is already highly capable.","bls_url":"https://www.bls.gov/oes/current/oes132082.htm"},{"code":"13-2099","title":"Financial Specialists, All Other","group":"Business & Financial Operations","major_code":"13","employment":190,"median_wage":72246,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"All other financial specialists perform knowledge-intensive financial analysis; AI tools are broadly applicable to this group.","bls_url":"https://www.bls.gov/oes/current/oes132099.htm"},{"code":"15-1211","title":"Computer Systems Analysts","group":"Computer & Mathematical","major_code":"15","employment":750,"median_wage":108302,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Primarily digital knowledge work analyzing and designing systems; AI tools accelerate requirements gathering, documentation, and system modeling substantially.","bls_url":"https://www.bls.gov/oes/current/oes151211.htm"},{"code":"15-1212","title":"Information Security Analysts","group":"Computer & Mathematical","major_code":"15","employment":80,"median_wage":117692,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Information security analysts monitor networks and respond to threats; AI accelerates threat detection, log analysis, and incident response, though human judgment remains critical for novel attacks.","bls_url":"https://www.bls.gov/oes/current/oes151212.htm"},{"code":"15-1231","title":"Computer Network Support Specialists","group":"Computer & Mathematical","major_code":"15","employment":190,"median_wage":77843,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Computer network support specialists troubleshoot hardware and software issues; AI accelerates diagnostics and documentation but physical network work and complex problem-solving require human technicians.","bls_url":"https://www.bls.gov/oes/current/oes151231.htm"},{"code":"15-1232","title":"Computer User Support Specialists","group":"Computer & Mathematical","major_code":"15","employment":1020,"median_wage":65354,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Computer user support specialists resolve technical issues; AI chatbots handle growing shares of tier-1 support but complex troubleshooting still requires human expertise.","bls_url":"https://www.bls.gov/oes/current/oes151232.htm"},{"code":"15-1241","title":"Computer Network Architects","group":"Computer & Mathematical","major_code":"15","employment":140,"median_wage":108490,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Network architects design enterprise network infrastructure; planning, documentation, and configuration are highly AI-amenable but architectural judgment requires expertise.","bls_url":"https://www.bls.gov/oes/current/oes151241.htm"},{"code":"15-1242","title":"Database Administrators","group":"Computer & Mathematical","major_code":"15","employment":90,"median_wage":93681,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Database administrators design and maintain database systems; SQL optimization, performance monitoring, and documentation are well-suited to AI augmentation.","bls_url":"https://www.bls.gov/oes/current/oes151242.htm"},{"code":"15-1244","title":"Network and Computer Systems Administrators","group":"Computer & Mathematical","major_code":"15","employment":450,"median_wage":96148,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Network and computer systems administrators manage IT infrastructure; monitoring, configuration, and troubleshooting are increasingly AI-assisted but hands-on work remains.","bls_url":"https://www.bls.gov/oes/current/oes151244.htm"},{"code":"15-1251","title":"Computer Programmers","group":"Computer & Mathematical","major_code":"15","employment":140,"median_wage":93669,"growth_rate":null,"education":null,"ai_exposure":9,"ai_rationale":"Computer programmers write and test code; AI coding assistants already generate substantial portions of code and automated testing is mature.","bls_url":"https://www.bls.gov/oes/current/oes151251.htm"},{"code":"15-1252","title":"Software Developers","group":"Computer & Mathematical","major_code":"15","employment":920,"median_wage":125030,"growth_rate":null,"education":null,"ai_exposure":9,"ai_rationale":"Core work is writing and reviewing code \u2014 AI coding assistants already handle significant portions; the occupation faces major restructuring as AI can generate, test, and debug code autonomously.","bls_url":"https://www.bls.gov/oes/current/oes151252.htm"},{"code":"15-1253","title":"Software Quality Assurance Analysts and Testers","group":"Computer & Mathematical","major_code":"15","employment":110,"median_wage":103603,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Software quality assurance analysts and testers verify software behavior; AI tools are accelerating test generation, execution, and defect analysis.","bls_url":"https://www.bls.gov/oes/current/oes151253.htm"},{"code":"15-1254","title":"Web Developers","group":"Computer & Mathematical","major_code":"15","employment":50,"median_wage":76410,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Web developers build and maintain websites; AI tools generate code, write copy, and assist with design, substantially augmenting productivity.","bls_url":"https://www.bls.gov/oes/current/oes151254.htm"},{"code":"15-1255","title":"Web and Digital Interface Designers","group":"Computer & Mathematical","major_code":"15","employment":110,"median_wage":72007,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Web and digital interface designers create user experiences; AI design tools accelerate wireframing, asset creation, and prototyping substantially.","bls_url":"https://www.bls.gov/oes/current/oes151255.htm"},{"code":"15-1299","title":"Computer Occupations, All Other","group":"Computer & Mathematical","major_code":"15","employment":820,"median_wage":83604,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"All other computer occupations perform digital knowledge work; AI tools broadly apply to coding, analysis, and systems work across this category.","bls_url":"https://www.bls.gov/oes/current/oes151299.htm"},{"code":"15-2031","title":"Operations Research Analysts","group":"Computer & Mathematical","major_code":"15","employment":170,"median_wage":69450,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Operations research analysts apply mathematical methods to optimize decisions; modeling, simulation, and data analysis are highly AI-assisted tasks.","bls_url":"https://www.bls.gov/oes/current/oes152031.htm"},{"code":"15-2051","title":"Data Scientists","group":"Computer & Mathematical","major_code":"15","employment":160,"median_wage":101808,"growth_rate":null,"education":null,"ai_exposure":9,"ai_rationale":"Data scientists build models and extract insights from large datasets; AI accelerates data preparation, model development, and insight generation \u2014 though defining the right questions remains human.","bls_url":"https://www.bls.gov/oes/current/oes152051.htm"},{"code":"17-1011","title":"Architects, Except Landscape and Naval","group":"Architecture & Engineering","major_code":"17","employment":120,"median_wage":101784,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Architects design buildings using CAD and BIM software; AI is accelerating generative design, code compliance checking, and documentation but creative design judgment remains human.","bls_url":"https://www.bls.gov/oes/current/oes171011.htm"},{"code":"17-1022","title":"Surveyors","group":"Architecture & Engineering","major_code":"17","employment":110,"median_wage":97975,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Surveyors measure and map land features; fieldwork is physical and technology-assisted but AI has limited direct impact on the core measurement tasks.","bls_url":"https://www.bls.gov/oes/current/oes171022.htm"},{"code":"17-2051","title":"Civil Engineers","group":"Architecture & Engineering","major_code":"17","employment":960,"median_wage":106018,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Civil engineers design infrastructure projects; AI aids analysis, modeling, and documentation but design judgment and field verification remain human.","bls_url":"https://www.bls.gov/oes/current/oes172051.htm"},{"code":"17-2071","title":"Electrical Engineers","group":"Architecture & Engineering","major_code":"17","employment":210,"median_wage":120012,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Electrical engineers design electrical systems and equipment; AI aids circuit simulation and documentation but design creativity requires human engineers.","bls_url":"https://www.bls.gov/oes/current/oes172071.htm"},{"code":"17-2072","title":"Electronics Engineers, Except Computer","group":"Architecture & Engineering","major_code":"17","employment":100,"median_wage":105450,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Electronics engineers design electronic components and systems; AI accelerates circuit design and testing but system-level engineering judgment is human.","bls_url":"https://www.bls.gov/oes/current/oes172072.htm"},{"code":"17-2111","title":"Health and Safety Engineers, Except Mining Safety Engineers and Inspectors","group":"Architecture & Engineering","major_code":"17","employment":30,"median_wage":83780,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Health and safety engineers assess workplace hazards and design safety systems; AI aids risk analysis and compliance documentation but field inspections require human presence.","bls_url":"https://www.bls.gov/oes/current/oes172111.htm"},{"code":"17-2112","title":"Industrial Engineers","group":"Architecture & Engineering","major_code":"17","employment":420,"median_wage":101162,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Industrial engineers optimize processes and workflows; AI accelerates simulation, data analysis, and process documentation substantially.","bls_url":"https://www.bls.gov/oes/current/oes172112.htm"},{"code":"17-2131","title":"Materials Engineers","group":"Architecture & Engineering","major_code":"17","employment":30,"median_wage":115260,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Materials engineers develop new materials and test properties; AI accelerates materials discovery and modeling but experimental work remains human.","bls_url":"https://www.bls.gov/oes/current/oes172131.htm"},{"code":"17-2141","title":"Mechanical Engineers","group":"Architecture & Engineering","major_code":"17","employment":390,"median_wage":99874,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Mechanical engineers design machines and mechanical systems; AI aids simulation, drafting, and analysis but creative design requires human engineers.","bls_url":"https://www.bls.gov/oes/current/oes172141.htm"},{"code":"17-2199","title":"Engineers, All Other","group":"Architecture & Engineering","major_code":"17","employment":280,"median_wage":110218,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"All other engineers perform technical design and analysis; AI tools broadly apply to simulation, documentation, and data analysis across engineering disciplines.","bls_url":"https://www.bls.gov/oes/current/oes172199.htm"},{"code":"17-3011","title":"Architectural and Civil Drafters","group":"Architecture & Engineering","major_code":"17","employment":310,"median_wage":65526,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Architectural and civil drafters create technical drawings using CAD software; AI is increasingly capable at generating and annotating technical drawings.","bls_url":"https://www.bls.gov/oes/current/oes173011.htm"},{"code":"17-3013","title":"Mechanical Drafters","group":"Architecture & Engineering","major_code":"17","employment":70,"median_wage":71240,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Mechanical drafters create technical drawings for mechanical systems; AI-assisted CAD tools accelerate drawing production substantially.","bls_url":"https://www.bls.gov/oes/current/oes173013.htm"},{"code":"17-3019","title":"Drafters, All Other","group":"Architecture & Engineering","major_code":"17","employment":40,"median_wage":59630,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"All other drafters create technical drawings; AI tools augment CAD-based drawing production across disciplines.","bls_url":"https://www.bls.gov/oes/current/oes173019.htm"},{"code":"17-3022","title":"Civil Engineering Technologists and Technicians","group":"Architecture & Engineering","major_code":"17","employment":150,"median_wage":76643,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Civil engineering technicians assist engineers with field measurements and testing; field-based data collection limits AI substitutability.","bls_url":"https://www.bls.gov/oes/current/oes173022.htm"},{"code":"17-3023","title":"Electrical and Electronic Engineering Technologists and Technicians","group":"Architecture & Engineering","major_code":"17","employment":50,"median_wage":84100,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Electrical and electronic engineering technicians test and troubleshoot electronic equipment; hands-on lab and field work limits AI impact.","bls_url":"https://www.bls.gov/oes/current/oes173023.htm"},{"code":"17-3026","title":"Industrial Engineering Technologists and Technicians","group":"Architecture & Engineering","major_code":"17","employment":40,"median_wage":71040,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Industrial engineering technicians implement and monitor production processes; shop-floor work blends knowledge tasks with physical oversight.","bls_url":"https://www.bls.gov/oes/current/oes173026.htm"},{"code":"17-3029","title":"Engineering Technologists and Technicians, Except Drafters, All Other","group":"Architecture & Engineering","major_code":"17","employment":60,"median_wage":76590,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"All other engineering technicians assist engineers in technical work; blend of field and lab tasks limits AI substitutability.","bls_url":"https://www.bls.gov/oes/current/oes173029.htm"},{"code":"17-3031","title":"Surveying and Mapping Technicians","group":"Architecture & Engineering","major_code":"17","employment":90,"median_wage":68252,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Surveying and mapping technicians collect field data to support mapping; fieldwork is physical and technology-assisted.","bls_url":"https://www.bls.gov/oes/current/oes173031.htm"},{"code":"19-1012","title":"Food Scientists and Technologists","group":"Life, Physical & Social Science","major_code":"19","employment":190,"median_wage":81748,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Food scientists analyze food composition and safety; AI accelerates literature review and formulation analysis but laboratory and field work remains human.","bls_url":"https://www.bls.gov/oes/current/oes191012.htm"},{"code":"19-1013","title":"Soil and Plant Scientists","group":"Life, Physical & Social Science","major_code":"19","employment":70,"median_wage":95711,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Soil and plant scientists conduct field and lab research; fieldwork and experimental design require human expertise.","bls_url":"https://www.bls.gov/oes/current/oes191013.htm"},{"code":"19-1022","title":"Microbiologists","group":"Life, Physical & Social Science","major_code":"19","employment":60,"median_wage":113870,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Microbiologists study microorganisms; AI accelerates genomic analysis and literature review but lab work remains essential.","bls_url":"https://www.bls.gov/oes/current/oes191022.htm"},{"code":"19-1029","title":"Biological Scientists, All Other","group":"Life, Physical & Social Science","major_code":"19","employment":120,"median_wage":101421,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"All other biological scientists conduct research on living organisms; AI aids data analysis and literature review but experimental work remains human.","bls_url":"https://www.bls.gov/oes/current/oes191029.htm"},{"code":"19-1042","title":"Medical Scientists, Except Epidemiologists","group":"Life, Physical & Social Science","major_code":"19","employment":250,"median_wage":130690,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Medical scientists conduct research to improve human health; AI accelerates data analysis and literature review but experimental design and lab work require human expertise.","bls_url":"https://www.bls.gov/oes/current/oes191042.htm"},{"code":"19-2031","title":"Chemists","group":"Life, Physical & Social Science","major_code":"19","employment":150,"median_wage":80648,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Chemists study substances and develop new materials; AI accelerates molecular modeling and literature review but laboratory work remains essential.","bls_url":"https://www.bls.gov/oes/current/oes192031.htm"},{"code":"19-2041","title":"Environmental Scientists and Specialists, Including Health","group":"Life, Physical & Social Science","major_code":"19","employment":180,"median_wage":92111,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Environmental scientists collect and analyze data on environmental quality; AI accelerates data analysis but field sampling requires physical presence.","bls_url":"https://www.bls.gov/oes/current/oes192041.htm"},{"code":"19-3033","title":"Clinical and Counseling Psychologists","group":"Life, Physical & Social Science","major_code":"19","employment":190,"median_wage":101831,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Clinical and counseling psychologists provide therapy and assessment; the therapeutic relationship and clinical judgment are deeply human and AI cannot replicate them.","bls_url":"https://www.bls.gov/oes/current/oes193033.htm"},{"code":"19-3034","title":"School Psychologists","group":"Life, Physical & Social Science","major_code":"19","employment":400,"median_wage":114898,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"School psychologists assess students and provide interventions; assessment administration and student relationships require human presence and judgment.","bls_url":"https://www.bls.gov/oes/current/oes193034.htm"},{"code":"19-3041","title":"Sociologists","group":"Life, Physical & Social Science","major_code":"19","employment":30,"median_wage":128600,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Sociologists study social behavior and institutions; AI accelerates literature review, data analysis, and report writing.","bls_url":"https://www.bls.gov/oes/current/oes193041.htm"},{"code":"19-3051","title":"Urban and Regional Planners","group":"Life, Physical & Social Science","major_code":"19","employment":150,"median_wage":105176,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Urban and regional planners analyze land use and develop community plans; AI aids data analysis and visualization but stakeholder engagement and policy judgment are human.","bls_url":"https://www.bls.gov/oes/current/oes193051.htm"},{"code":"19-3099","title":"Social Scientists and Related Workers, All Other","group":"Life, Physical & Social Science","major_code":"19","employment":70,"median_wage":61948,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"All other social scientists conduct research on human behavior; AI aids data analysis and literature synthesis broadly.","bls_url":"https://www.bls.gov/oes/current/oes193099.htm"},{"code":"19-4012","title":"Agricultural Technicians","group":"Life, Physical & Social Science","major_code":"19","employment":130,"median_wage":49963,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Agricultural technicians assist scientists with field and lab work; physical sample collection and equipment operation require human presence.","bls_url":"https://www.bls.gov/oes/current/oes194012.htm"},{"code":"19-4013","title":"Food Science Technicians","group":"Life, Physical & Social Science","major_code":"19","employment":610,"median_wage":52395,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Food science technicians perform lab tests and quality control; hands-on laboratory work limits AI substitutability.","bls_url":"https://www.bls.gov/oes/current/oes194013.htm"},{"code":"19-4021","title":"Biological Technicians","group":"Life, Physical & Social Science","major_code":"19","employment":40,"median_wage":54910,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Biological technicians assist scientists with lab experiments; hands-on laboratory technique is central to the role.","bls_url":"https://www.bls.gov/oes/current/oes194021.htm"},{"code":"19-4031","title":"Chemical Technicians","group":"Life, Physical & Social Science","major_code":"19","employment":230,"median_wage":52774,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Chemical technicians conduct laboratory tests and analyze samples; hands-on chemistry lab work remains the core function.","bls_url":"https://www.bls.gov/oes/current/oes194031.htm"},{"code":"19-4042","title":"Environmental Science and Protection Technicians, Including Health","group":"Life, Physical & Social Science","major_code":"19","employment":40,"median_wage":46270,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Environmental science technicians collect field samples and conduct lab analyses; fieldwork requires physical presence.","bls_url":"https://www.bls.gov/oes/current/oes194042.htm"},{"code":"19-4071","title":"Forest and Conservation Technicians","group":"Life, Physical & Social Science","major_code":"19","employment":50,"median_wage":50460,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Forest and conservation technicians work in the field monitoring forest health; physical field work is the primary function.","bls_url":"https://www.bls.gov/oes/current/oes194071.htm"},{"code":"19-4092","title":"Forensic Science Technicians","group":"Life, Physical & Social Science","major_code":"19","employment":100,"median_wage":79790,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Forensic science technicians collect and analyze physical evidence; lab analysis and field collection are both hands-on roles.","bls_url":"https://www.bls.gov/oes/current/oes194092.htm"},{"code":"19-4099","title":"Life, Physical, and Social Science Technicians, All Other","group":"Life, Physical & Social Science","major_code":"19","employment":40,"median_wage":61550,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"All other science technicians assist with research and testing; physical lab and field tasks limit AI substitutability.","bls_url":"https://www.bls.gov/oes/current/oes194099.htm"},{"code":"19-5011","title":"Occupational Health and Safety Specialists","group":"Life, Physical & Social Science","major_code":"19","employment":430,"median_wage":88357,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Occupational health and safety specialists inspect workplaces and develop safety programs; AI aids compliance documentation but field inspection requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes195011.htm"},{"code":"19-5012","title":"Occupational Health and Safety Technicians","group":"Life, Physical & Social Science","major_code":"19","employment":300,"median_wage":58131,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Occupational health and safety technicians conduct inspections and data collection; fieldwork and equipment operation require human presence.","bls_url":"https://www.bls.gov/oes/current/oes195012.htm"},{"code":"21-1012","title":"Educational, Guidance, and Career Counselors and Advisors","group":"Community & Social Service","major_code":"21","employment":1520,"median_wage":89901,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Educational, guidance, and career counselors advise students; AI aids information gathering and resource matching but counseling relationships require human empathy.","bls_url":"https://www.bls.gov/oes/current/oes211012.htm"},{"code":"21-1013","title":"Marriage and Family Therapists","group":"Community & Social Service","major_code":"21","employment":680,"median_wage":63940,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Marriage and family therapists provide therapeutic counseling; the therapeutic relationship is fundamentally human and AI cannot replicate it.","bls_url":"https://www.bls.gov/oes/current/oes211013.htm"},{"code":"21-1015","title":"Rehabilitation Counselors","group":"Community & Social Service","major_code":"21","employment":290,"median_wage":41575,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Rehabilitation counselors help clients with disabilities achieve work and life goals; client relationships and individualized planning require human presence.","bls_url":"https://www.bls.gov/oes/current/oes211015.htm"},{"code":"21-1018","title":"Substance Abuse, Behavioral Disorder, and Mental Health Counselors","group":"Community & Social Service","major_code":"21","employment":2150,"median_wage":64593,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Substance abuse and mental health counselors provide therapeutic support; treatment relationships and crisis response require human judgment and empathy.","bls_url":"https://www.bls.gov/oes/current/oes211018.htm"},{"code":"21-1019","title":"Counselors, All Other","group":"Community & Social Service","major_code":"21","employment":350,"median_wage":45992,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"All other counselors provide guidance and support services; counseling relationships are human-centered and resist AI substitution.","bls_url":"https://www.bls.gov/oes/current/oes211019.htm"},{"code":"21-1021","title":"Child, Family, and School Social Workers","group":"Community & Social Service","major_code":"21","employment":1770,"median_wage":65844,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Case management has digital components but the core work involves in-person assessment, counseling, and advocacy.","bls_url":"https://www.bls.gov/oes/current/oes211021.htm"},{"code":"21-1022","title":"Healthcare Social Workers","group":"Community & Social Service","major_code":"21","employment":490,"median_wage":91003,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Healthcare social workers coordinate patient care transitions and provide psychosocial support; clinical judgment and patient relationships are central to the role.","bls_url":"https://www.bls.gov/oes/current/oes211022.htm"},{"code":"21-1023","title":"Mental Health and Substance Abuse Social Workers","group":"Community & Social Service","major_code":"21","employment":350,"median_wage":68751,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Mental health and substance abuse social workers provide therapeutic intervention; client relationships and crisis response require human presence.","bls_url":"https://www.bls.gov/oes/current/oes211023.htm"},{"code":"21-1029","title":"Social Workers, All Other","group":"Community & Social Service","major_code":"21","employment":130,"median_wage":73965,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"All other social workers provide case management and advocacy; human relationships and community knowledge are central.","bls_url":"https://www.bls.gov/oes/current/oes211029.htm"},{"code":"21-1091","title":"Health Education Specialists","group":"Community & Social Service","major_code":"21","employment":370,"median_wage":61581,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Health education specialists develop programs and materials to promote health; AI aids content creation and data analysis but community engagement is human.","bls_url":"https://www.bls.gov/oes/current/oes211091.htm"},{"code":"21-1093","title":"Social and Human Service Assistants","group":"Community & Social Service","major_code":"21","employment":2050,"median_wage":54344,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Social and human service assistants provide support and connect clients to resources; client relationships and community knowledge are essential.","bls_url":"https://www.bls.gov/oes/current/oes211093.htm"},{"code":"21-1094","title":"Community Health Workers","group":"Community & Social Service","major_code":"21","employment":140,"median_wage":50141,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Community health workers conduct outreach and connect communities to health services; field-based community engagement is primarily human.","bls_url":"https://www.bls.gov/oes/current/oes211094.htm"},{"code":"21-1099","title":"Community and Social Service Specialists, All Other","group":"Community & Social Service","major_code":"21","employment":450,"median_wage":53641,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"All other community and social service specialists provide direct human services; people-centered work resists AI substitution.","bls_url":"https://www.bls.gov/oes/current/oes211099.htm"},{"code":"21-2011","title":"Clergy","group":"Community & Social Service","major_code":"21","employment":220,"median_wage":73979,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Clergy lead religious services and provide spiritual guidance; pastoral relationships and spiritual leadership are fundamentally human.","bls_url":"https://www.bls.gov/oes/current/oes212011.htm"},{"code":"21-2021","title":"Directors, Religious Activities and Education","group":"Community & Social Service","major_code":"21","employment":70,"median_wage":55510,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Directors of religious activities and education plan programs and coordinate volunteers; community leadership and faith-based work are human-centered.","bls_url":"https://www.bls.gov/oes/current/oes212021.htm"},{"code":"23-1011","title":"Lawyers","group":"Legal","major_code":"23","employment":1020,"median_wage":160702,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Lawyers provide legal counsel and represent clients; AI accelerates legal research and document drafting but advocacy, negotiation, and client judgment require human expertise.","bls_url":"https://www.bls.gov/oes/current/oes231011.htm"},{"code":"23-2011","title":"Paralegals and Legal Assistants","group":"Legal","major_code":"23","employment":610,"median_wage":59466,"growth_rate":null,"education":null,"ai_exposure":9,"ai_rationale":"Paralegals and legal assistants research laws, prepare documents, and support attorneys; document review, research synthesis, and drafting are highly amenable to AI automation.","bls_url":"https://www.bls.gov/oes/current/oes232011.htm"},{"code":"23-2093","title":"Title Examiners, Abstractors, and Searchers","group":"Legal","major_code":"23","employment":30,"median_wage":79970,"growth_rate":null,"education":null,"ai_exposure":9,"ai_rationale":"Title examiners search public records and analyze property history; this is primarily document search and analysis work that AI can perform efficiently.","bls_url":"https://www.bls.gov/oes/current/oes232093.htm"},{"code":"23-2099","title":"Legal Support Workers, All Other","group":"Legal","major_code":"23","employment":120,"median_wage":78750,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"All other legal support workers assist attorneys with research and documentation; digital document-intensive tasks are highly AI-amenable.","bls_url":"https://www.bls.gov/oes/current/oes232099.htm"},{"code":"25-1071","title":"Health Specialties Teachers, Postsecondary","group":"Education & Library","major_code":"25","employment":40,"median_wage":61430,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Health specialties teachers supervise clinical training; direct clinical mentorship requires human expertise.","bls_url":"https://www.bls.gov/oes/current/oes251071.htm"},{"code":"25-1072","title":"Nursing Instructors and Teachers, Postsecondary","group":"Education & Library","major_code":"25","employment":60,"median_wage":77470,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Nursing instructors teach and supervise clinical training; patient care instruction requires human presence and judgment.","bls_url":"https://www.bls.gov/oes/current/oes251072.htm"},{"code":"25-1194","title":"Career/Technical Education Teachers, Postsecondary","group":"Education & Library","major_code":"25","employment":320,"median_wage":63694,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Career and technical education teachers at postsecondary level teach applied vocational skills; hands-on instruction is human-centered.","bls_url":"https://www.bls.gov/oes/current/oes251194.htm"},{"code":"25-2011","title":"Preschool Teachers, Except Special Education","group":"Education & Library","major_code":"25","employment":1730,"median_wage":45974,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Preschool teachers develop young children through play-based learning; early childhood development requires constant human presence and nurturing.","bls_url":"https://www.bls.gov/oes/current/oes252011.htm"},{"code":"25-2012","title":"Kindergarten Teachers, Except Special Education","group":"Education & Library","major_code":"25","employment":590,"median_wage":97863,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Kindergarten teachers support young children's foundational development; human presence and emotional support are central to early education.","bls_url":"https://www.bls.gov/oes/current/oes252012.htm"},{"code":"25-2021","title":"Elementary School Teachers, Except Special Education","group":"Education & Library","major_code":"25","employment":6120,"median_wage":97724,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Teaching involves significant human relationship-building, classroom management, and adaptability; AI can assist with lesson planning and grading but cannot replace in-person instruction.","bls_url":"https://www.bls.gov/oes/current/oes252021.htm"},{"code":"25-2022","title":"Middle School Teachers, Except Special and Career/Technical Education","group":"Education & Library","major_code":"25","employment":2110,"median_wage":84805,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Middle school teachers manage adolescent development and subject learning; classroom relationships and management require human presence.","bls_url":"https://www.bls.gov/oes/current/oes252022.htm"},{"code":"25-2031","title":"Secondary School Teachers, Except Special and Career/Technical Education","group":"Education & Library","major_code":"25","employment":4680,"median_wage":96192,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Secondary school teachers facilitate advanced subject learning and mentorship; classroom relationships and management require human judgment.","bls_url":"https://www.bls.gov/oes/current/oes252031.htm"},{"code":"25-2032","title":"Career/Technical Education Teachers, Secondary School","group":"Education & Library","major_code":"25","employment":230,"median_wage":96715,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Career and technical education teachers at secondary school level provide vocational instruction; hands-on teaching requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes252032.htm"},{"code":"25-2052","title":"Special Education Teachers, Kindergarten and Elementary School","group":"Education & Library","major_code":"25","employment":620,"median_wage":87383,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Special education teachers for K-5 provide individualized instruction and support; differentiated teaching and relationship-building require human presence.","bls_url":"https://www.bls.gov/oes/current/oes252052.htm"},{"code":"25-2057","title":"Special Education Teachers, Middle School","group":"Education & Library","major_code":"25","employment":290,"median_wage":82005,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Special education teachers for middle school develop IEPs and provide specialized instruction; individualized support requires human judgment and presence.","bls_url":"https://www.bls.gov/oes/current/oes252057.htm"},{"code":"25-2058","title":"Special Education Teachers, Secondary School","group":"Education & Library","major_code":"25","employment":500,"median_wage":90465,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Special education teachers for secondary school prepare students for transition; individualized instruction and advocacy require human presence.","bls_url":"https://www.bls.gov/oes/current/oes252058.htm"},{"code":"25-2059","title":"Special Education Teachers, All Other","group":"Education & Library","major_code":"25","employment":450,"median_wage":85606,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"All other special education teachers provide specialized instruction; intensive human presence is central to special education.","bls_url":"https://www.bls.gov/oes/current/oes252059.htm"},{"code":"25-3011","title":"Adult Basic Education, Adult Secondary Education, and English as a Second Language Instructors","group":"Education & Library","major_code":"25","employment":120,"median_wage":111780,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Adult basic and ESL instructors support learners at varied skill levels; adaptive human instruction is central to adult literacy education.","bls_url":"https://www.bls.gov/oes/current/oes253011.htm"},{"code":"25-3021","title":"Self-Enrichment Teachers","group":"Education & Library","major_code":"25","employment":670,"median_wage":44668,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Self-enrichment teachers provide instruction in hobbies and personal development; in-person skill-building and coaching are human-centered.","bls_url":"https://www.bls.gov/oes/current/oes253021.htm"},{"code":"25-3031","title":"Substitute Teachers, Short-Term","group":"Education & Library","major_code":"25","employment":5990,"median_wage":57562,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Substitute teachers maintain classroom order and deliver assigned content; physical presence in the classroom is the core function.","bls_url":"https://www.bls.gov/oes/current/oes253031.htm"},{"code":"25-3041","title":"Tutors","group":"Education & Library","major_code":"25","employment":1270,"median_wage":37096,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Tutors provide personalized academic support; human tutors adapt dynamically to learner needs though AI tutoring is advancing rapidly.","bls_url":"https://www.bls.gov/oes/current/oes253041.htm"},{"code":"25-3099","title":"Teachers and Instructors, All Other","group":"Education & Library","major_code":"25","employment":1220,"median_wage":97430,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"All other teachers and instructors provide instruction in various settings; human interaction and adaptability are core teaching competencies.","bls_url":"https://www.bls.gov/oes/current/oes253099.htm"},{"code":"25-4022","title":"Librarians and Media Collections Specialists","group":"Education & Library","major_code":"25","employment":250,"median_wage":84536,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Librarians organize collections and assist patrons with research; AI aids catalog search and information retrieval but reference consultation and curation remain human.","bls_url":"https://www.bls.gov/oes/current/oes254022.htm"},{"code":"25-4031","title":"Library Technicians","group":"Education & Library","major_code":"25","employment":350,"median_wage":49775,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Library technicians assist librarians and maintain collections; catalog management and patron services have significant AI augmentation potential.","bls_url":"https://www.bls.gov/oes/current/oes254031.htm"},{"code":"25-9031","title":"Instructional Coordinators","group":"Education & Library","major_code":"25","employment":650,"median_wage":110853,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Instructional coordinators develop curricula and train teachers; AI aids content design but teacher professional development requires human expertise.","bls_url":"https://www.bls.gov/oes/current/oes259031.htm"},{"code":"25-9044","title":"Teaching Assistants, Postsecondary","group":"Education & Library","major_code":"25","employment":80,"median_wage":37270,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Teaching assistants at postsecondary level support instruction and lab work; human presence in instruction and student support is central.","bls_url":"https://www.bls.gov/oes/current/oes259044.htm"},{"code":"25-9045","title":"Teaching Assistants, Except Postsecondary","group":"Education & Library","major_code":"25","employment":7500,"median_wage":43504,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Teaching assistants below postsecondary level support teachers in classrooms; physical classroom presence and student support require human engagement.","bls_url":"https://www.bls.gov/oes/current/oes259045.htm"},{"code":"25-9099","title":"Educational Instruction and Library Workers, All Other","group":"Education & Library","major_code":"25","employment":1200,"median_wage":58538,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"All other educational and library workers support learning environments; human presence and adaptability are core functions.","bls_url":"https://www.bls.gov/oes/current/oes259099.htm"},{"code":"27-1011","title":"Art Directors","group":"Arts, Design & Media","major_code":"27","employment":30,"median_wage":113460,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Art directors oversee visual creative output for campaigns and media; AI is rapidly capable at generating and iterating visual concepts but strategic creative direction remains human.","bls_url":"https://www.bls.gov/oes/current/oes271011.htm"},{"code":"27-1021","title":"Commercial and Industrial Designers","group":"Arts, Design & Media","major_code":"27","employment":50,"median_wage":76170,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Commercial and industrial designers design products and packaging; AI accelerates concept generation and CAD modeling but design judgment and client collaboration are human.","bls_url":"https://www.bls.gov/oes/current/oes271021.htm"},{"code":"27-1023","title":"Floral Designers","group":"Arts, Design & Media","major_code":"27","employment":110,"median_wage":41079,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Floral designers arrange flowers and plants; physical craft and creative arrangement are hands-on work.","bls_url":"https://www.bls.gov/oes/current/oes271023.htm"},{"code":"27-1024","title":"Graphic Designers","group":"Arts, Design & Media","major_code":"27","employment":300,"median_wage":66179,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Graphic designers create visual communications; AI tools are transforming image generation, layout, and typography in graphic design.","bls_url":"https://www.bls.gov/oes/current/oes271024.htm"},{"code":"27-1026","title":"Merchandise Displayers and Window Trimmers","group":"Arts, Design & Media","major_code":"27","employment":520,"median_wage":42226,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Merchandise displayers arrange retail product displays; physical arrangement and visual merchandising are hands-on tasks.","bls_url":"https://www.bls.gov/oes/current/oes271026.htm"},{"code":"27-2012","title":"Producers and Directors","group":"Arts, Design & Media","major_code":"27","employment":80,"median_wage":72380,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Producers and directors oversee creative projects; AI aids scheduling and budgeting but creative vision and team leadership are human.","bls_url":"https://www.bls.gov/oes/current/oes272012.htm"},{"code":"27-2022","title":"Coaches and Scouts","group":"Arts, Design & Media","major_code":"27","employment":750,"median_wage":39469,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Coaches and scouts evaluate athletic talent and develop players; physical training and athlete relationship-building are human-centered.","bls_url":"https://www.bls.gov/oes/current/oes272022.htm"},{"code":"27-2023","title":"Umpires, Referees, and Other Sports Officials","group":"Arts, Design & Media","major_code":"27","employment":100,"median_wage":36620,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Umpires, referees, and sports officials enforce rules during live events; real-time physical judgment in dynamic situations requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes272023.htm"},{"code":"27-3031","title":"Public Relations Specialists","group":"Arts, Design & Media","major_code":"27","employment":390,"median_wage":69990,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Public relations specialists craft communications and manage media relationships; AI accelerates writing and monitoring but relationship management is human.","bls_url":"https://www.bls.gov/oes/current/oes273031.htm"},{"code":"27-3041","title":"Editors","group":"Arts, Design & Media","major_code":"27","employment":40,"median_wage":60530,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Editors review and revise written content; AI is highly capable at grammar correction, style suggestion, and content reorganization.","bls_url":"https://www.bls.gov/oes/current/oes273041.htm"},{"code":"27-3091","title":"Interpreters and Translators","group":"Arts, Design & Media","major_code":"27","employment":110,"median_wage":55054,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Interpreters and translators convert content between languages; AI translation is highly capable though nuance, cultural context, and live interpreting still benefit from human expertise.","bls_url":"https://www.bls.gov/oes/current/oes273091.htm"},{"code":"27-3092","title":"Court Reporters and Simultaneous Captioners","group":"Arts, Design & Media","major_code":"27","employment":30,"median_wage":135290,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Court reporters and simultaneous captioners produce verbatim transcripts; AI speech-to-text is highly capable and increasingly deployed in this role.","bls_url":"https://www.bls.gov/oes/current/oes273092.htm"},{"code":"27-4011","title":"Audio and Video Technicians","group":"Arts, Design & Media","major_code":"27","employment":110,"median_wage":54179,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Audio and video technicians set up and operate AV equipment; physical equipment operation and troubleshooting require human technicians.","bls_url":"https://www.bls.gov/oes/current/oes274011.htm"},{"code":"27-4021","title":"Photographers","group":"Arts, Design & Media","major_code":"27","employment":30,"median_wage":45880,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Photographers capture images using cameras and editing software; AI aids editing and image enhancement but creative photography and client direction are human.","bls_url":"https://www.bls.gov/oes/current/oes274021.htm"},{"code":"29-1021","title":"Dentists, General","group":"Healthcare Practitioners","major_code":"29","employment":470,"median_wage":162168,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Dentists perform oral examination and invasive dental procedures; manual clinical skill and patient interaction are core to dentistry.","bls_url":"https://www.bls.gov/oes/current/oes291021.htm"},{"code":"29-1031","title":"Dietitians and Nutritionists","group":"Healthcare Practitioners","major_code":"29","employment":270,"median_wage":93601,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Dietitians and nutritionists assess patient health and develop nutrition plans; AI aids dietary analysis but patient counseling and clinical judgment require human expertise.","bls_url":"https://www.bls.gov/oes/current/oes291031.htm"},{"code":"29-1041","title":"Optometrists","group":"Healthcare Practitioners","major_code":"29","employment":150,"median_wage":135702,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Optometrists examine eyes and prescribe corrective lenses; examination requires physical presence but AI is accelerating diagnostic imaging analysis.","bls_url":"https://www.bls.gov/oes/current/oes291041.htm"},{"code":"29-1051","title":"Pharmacists","group":"Healthcare Practitioners","major_code":"29","employment":970,"median_wage":160760,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Dispensing, counseling, and clinical review are partially automatable but patient interaction and clinical judgment remain important.","bls_url":"https://www.bls.gov/oes/current/oes291051.htm"},{"code":"29-1071","title":"Physician Assistants","group":"Healthcare Practitioners","major_code":"29","employment":380,"median_wage":160599,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Physician assistants perform clinical examinations and patient management; clinical assessment and patient relationships require human presence.","bls_url":"https://www.bls.gov/oes/current/oes291071.htm"},{"code":"29-1122","title":"Occupational Therapists","group":"Healthcare Practitioners","major_code":"29","employment":330,"median_wage":117780,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Occupational therapists design and deliver therapeutic interventions; hands-on therapy and patient relationship-building are central to the role.","bls_url":"https://www.bls.gov/oes/current/oes291122.htm"},{"code":"29-1123","title":"Physical Therapists","group":"Healthcare Practitioners","major_code":"29","employment":730,"median_wage":122811,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Physical therapists provide hands-on therapeutic treatment and exercise instruction; manual therapy and patient coaching require human presence.","bls_url":"https://www.bls.gov/oes/current/oes291123.htm"},{"code":"29-1125","title":"Recreational Therapists","group":"Healthcare Practitioners","major_code":"29","employment":40,"median_wage":102640,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Recreational therapists plan and direct activity programs for patients; human engagement and activity facilitation are central.","bls_url":"https://www.bls.gov/oes/current/oes291125.htm"},{"code":"29-1126","title":"Respiratory Therapists","group":"Healthcare Practitioners","major_code":"29","employment":720,"median_wage":99962,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Respiratory therapists assess and treat patients with breathing disorders; hands-on clinical care and patient monitoring require human presence.","bls_url":"https://www.bls.gov/oes/current/oes291126.htm"},{"code":"29-1127","title":"Speech-Language Pathologists","group":"Healthcare Practitioners","major_code":"29","employment":550,"median_wage":115916,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Speech-language pathologists assess and treat communication and swallowing disorders; therapeutic relationships and individualized treatment require human expertise.","bls_url":"https://www.bls.gov/oes/current/oes291127.htm"},{"code":"29-1131","title":"Veterinarians","group":"Healthcare Practitioners","major_code":"29","employment":230,"median_wage":146552,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Veterinarians examine animals, diagnose illness, and perform surgery; clinical examination and surgical procedures require physical presence and manual skill.","bls_url":"https://www.bls.gov/oes/current/oes291131.htm"},{"code":"29-1141","title":"Registered Nurses","group":"Healthcare Practitioners","major_code":"29","employment":11290,"median_wage":148958,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Mixed clinical and knowledge work; AI assists with documentation and diagnostics but patient care, physical assessment, and emotional support require human presence.","bls_url":"https://www.bls.gov/oes/current/oes291141.htm"},{"code":"29-1171","title":"Nurse Practitioners","group":"Healthcare Practitioners","major_code":"29","employment":770,"median_wage":161383,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Nurse practitioners provide advanced primary and specialty care; AI aids documentation and diagnostics but clinical examination and patient relationships require human practitioners.","bls_url":"https://www.bls.gov/oes/current/oes291171.htm"},{"code":"29-1215","title":"Family Medicine Physicians","group":"Healthcare Practitioners","major_code":"29","employment":710,"median_wage":0,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Family medicine physicians provide primary care; clinical relationships and whole-person care require human presence though AI aids diagnostics.","bls_url":"https://www.bls.gov/oes/current/oes291215.htm"},{"code":"29-1221","title":"Pediatricians, General","group":"Healthcare Practitioners","major_code":"29","employment":100,"median_wage":0,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Pediatricians provide child healthcare; clinical relationships and developmental assessment require human expertise.","bls_url":"https://www.bls.gov/oes/current/oes291221.htm"},{"code":"29-1223","title":"Psychiatrists","group":"Healthcare Practitioners","major_code":"29","employment":90,"median_wage":0,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Psychiatrists diagnose and treat mental health conditions; therapeutic relationships and clinical judgment in mental health require human presence.","bls_url":"https://www.bls.gov/oes/current/oes291223.htm"},{"code":"29-1229","title":"Physicians, All Other","group":"Healthcare Practitioners","major_code":"29","employment":690,"median_wage":117000,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"All other physicians provide medical care; clinical examination and patient relationships require human expertise.","bls_url":"https://www.bls.gov/oes/current/oes291229.htm"},{"code":"29-1292","title":"Dental Hygienists","group":"Healthcare Practitioners","major_code":"29","employment":560,"median_wage":123222,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Dental hygienists perform teeth cleaning and patient education; hands-on oral hygiene procedures require physical presence.","bls_url":"https://www.bls.gov/oes/current/oes291292.htm"},{"code":"29-2010","title":"Clinical Laboratory Technologists and Technicians","group":"Healthcare Practitioners","major_code":"29","employment":750,"median_wage":72156,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Clinical laboratory technologists and technicians analyze specimens using automated equipment; AI aids result interpretation but lab technique and quality control require human technicians.","bls_url":"https://www.bls.gov/oes/current/oes292010.htm"},{"code":"29-2031","title":"Cardiovascular Technologists and Technicians","group":"Healthcare Practitioners","major_code":"29","employment":140,"median_wage":82067,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Cardiovascular technologists and technicians perform diagnostic imaging and monitor procedures; hands-on imaging technique requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes292031.htm"},{"code":"29-2032","title":"Diagnostic Medical Sonographers","group":"Healthcare Practitioners","major_code":"29","employment":320,"median_wage":123599,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Diagnostic medical sonographers perform ultrasound imaging; probe manipulation and image quality require hands-on technique.","bls_url":"https://www.bls.gov/oes/current/oes292032.htm"},{"code":"29-2034","title":"Radiologic Technologists and Technicians","group":"Healthcare Practitioners","major_code":"29","employment":620,"median_wage":117195,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Radiologic technologists and technicians perform X-ray and imaging procedures; patient positioning and image acquisition require human presence.","bls_url":"https://www.bls.gov/oes/current/oes292034.htm"},{"code":"29-2035","title":"Magnetic Resonance Imaging Technologists","group":"Healthcare Practitioners","major_code":"29","employment":90,"median_wage":111810,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"MRI technologists position patients and operate MRI equipment; hands-on patient care and imaging technique require human presence.","bls_url":"https://www.bls.gov/oes/current/oes292035.htm"},{"code":"29-2042","title":"Emergency Medical Technicians","group":"Healthcare Practitioners","major_code":"29","employment":840,"median_wage":36710,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Emergency medical technicians respond to medical emergencies in the field; rapid physical assessment and stabilization in unpredictable environments require human judgment.","bls_url":"https://www.bls.gov/oes/current/oes292042.htm"},{"code":"29-2043","title":"Paramedics","group":"Healthcare Practitioners","major_code":"29","employment":280,"median_wage":66501,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Paramedics provide advanced life support in the field; clinical decision-making and hands-on emergency care in dynamic environments require human expertise.","bls_url":"https://www.bls.gov/oes/current/oes292043.htm"},{"code":"29-2051","title":"Dietetic Technicians","group":"Healthcare Practitioners","major_code":"29","employment":230,"median_wage":46084,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Dietetic technicians assist dietitians with nutritional screening and education; patient contact and dietary assessment require human interaction.","bls_url":"https://www.bls.gov/oes/current/oes292051.htm"},{"code":"29-2052","title":"Pharmacy Technicians","group":"Healthcare Practitioners","major_code":"29","employment":1540,"median_wage":47350,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Pharmacy technicians prepare and dispense medications under pharmacist supervision; medication handling and verification require human technicians though automation is advancing.","bls_url":"https://www.bls.gov/oes/current/oes292052.htm"},{"code":"29-2053","title":"Psychiatric Technicians","group":"Healthcare Practitioners","major_code":"29","employment":370,"median_wage":91910,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Psychiatric technicians provide therapeutic care to patients with mental disorders; direct patient care and behavior management require human presence.","bls_url":"https://www.bls.gov/oes/current/oes292053.htm"},{"code":"29-2055","title":"Surgical Technologists","group":"Healthcare Practitioners","major_code":"29","employment":330,"median_wage":80004,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Surgical technologists prepare operating rooms and assist during surgery; hands-on instrument handling and sterile technique require human presence.","bls_url":"https://www.bls.gov/oes/current/oes292055.htm"},{"code":"29-2056","title":"Veterinary Technologists and Technicians","group":"Healthcare Practitioners","major_code":"29","employment":350,"median_wage":49000,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Veterinary technologists and technicians assist veterinarians with animal care; hands-on animal handling and clinical procedures require human presence.","bls_url":"https://www.bls.gov/oes/current/oes292056.htm"},{"code":"29-2057","title":"Ophthalmic Medical Technicians","group":"Healthcare Practitioners","major_code":"29","employment":50,"median_wage":46540,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Ophthalmic medical technicians assist ophthalmologists with examinations; patient contact and equipment operation require human presence.","bls_url":"https://www.bls.gov/oes/current/oes292057.htm"},{"code":"29-2061","title":"Licensed Practical and Licensed Vocational Nurses","group":"Healthcare Practitioners","major_code":"29","employment":2690,"median_wage":75237,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Licensed practical and vocational nurses provide basic nursing care; hands-on patient care and monitoring require human presence.","bls_url":"https://www.bls.gov/oes/current/oes292061.htm"},{"code":"29-2072","title":"Medical Records Specialists","group":"Healthcare Practitioners","major_code":"29","employment":580,"median_wage":54577,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Medical records specialists manage health information and coding; this is primarily digital data processing where AI is rapidly automating coding, abstracting, and record management.","bls_url":"https://www.bls.gov/oes/current/oes292072.htm"},{"code":"29-2081","title":"Opticians, Dispensing","group":"Healthcare Practitioners","major_code":"29","employment":310,"median_wage":53674,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Dispensing opticians fit eyeglasses and contact lenses; hands-on fitting and frame adjustment require human presence.","bls_url":"https://www.bls.gov/oes/current/oes292081.htm"},{"code":"29-2099","title":"Health Technologists and Technicians, All Other","group":"Healthcare Practitioners","major_code":"29","employment":800,"median_wage":55258,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"All other health technologists and technicians perform clinical support tasks; a blend of hands-on and administrative work characterizes this group.","bls_url":"https://www.bls.gov/oes/current/oes292099.htm"},{"code":"29-9093","title":"Surgical Assistants","group":"Healthcare Practitioners","major_code":"29","employment":60,"median_wage":63400,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Surgical assistants support surgeons during procedures; hands-on instrument handling and sterile field maintenance require human presence.","bls_url":"https://www.bls.gov/oes/current/oes299093.htm"},{"code":"29-9099","title":"Healthcare Practitioners and Technical Workers, All Other","group":"Healthcare Practitioners","major_code":"29","employment":50,"median_wage":56930,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"All other healthcare practitioners and technical workers provide specialized clinical support; hands-on work generally limits AI substitutability.","bls_url":"https://www.bls.gov/oes/current/oes299099.htm"},{"code":"31-1120","title":"Home Health and Personal Care Aides","group":"Healthcare Support","major_code":"31","employment":24030,"median_wage":33407,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Hands-on personal care in varied home environments; physical presence and emotional connection are central to the role.","bls_url":"https://www.bls.gov/oes/current/oes311120.htm"},{"code":"31-1131","title":"Nursing Assistants","group":"Healthcare Support","major_code":"31","employment":4080,"median_wage":44987,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Nursing assistants provide hands-on personal care including bathing, feeding, and mobility assistance; physical presence and compassionate care are irreplaceable.","bls_url":"https://www.bls.gov/oes/current/oes311131.htm"},{"code":"31-1132","title":"Orderlies","group":"Healthcare Support","major_code":"31","employment":70,"median_wage":47400,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Orderlies transport patients and assist with physical care; hands-on physical assistance requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes311132.htm"},{"code":"31-2011","title":"Occupational Therapy Assistants","group":"Healthcare Support","major_code":"31","employment":50,"median_wage":93440,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Occupational therapy assistants implement treatment plans under OT supervision; hands-on therapeutic activities require human presence.","bls_url":"https://www.bls.gov/oes/current/oes312011.htm"},{"code":"31-2021","title":"Physical Therapist Assistants","group":"Healthcare Support","major_code":"31","employment":240,"median_wage":89995,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Physical therapist assistants help patients with exercises and physical therapy; hands-on therapeutic work requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes312021.htm"},{"code":"31-2022","title":"Physical Therapist Aides","group":"Healthcare Support","major_code":"31","employment":250,"median_wage":35531,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Physical therapist aides set up treatment areas and support PT sessions; physical assistance and equipment setup are hands-on tasks.","bls_url":"https://www.bls.gov/oes/current/oes312022.htm"},{"code":"31-9011","title":"Massage Therapists","group":"Healthcare Support","major_code":"31","employment":170,"median_wage":59440,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Massage therapists provide manual therapeutic massage; physical touch-based therapy requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes319011.htm"},{"code":"31-9091","title":"Dental Assistants","group":"Healthcare Support","major_code":"31","employment":1850,"median_wage":48245,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Dental assistants prepare patients and assist dentists during procedures; hands-on chairside assistance requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes319091.htm"},{"code":"31-9092","title":"Medical Assistants","group":"Healthcare Support","major_code":"31","employment":3740,"median_wage":46278,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Medical assistants take vital signs, draw blood, and handle administrative tasks; the role blends clinical hands-on work with digital administrative tasks that AI is automating.","bls_url":"https://www.bls.gov/oes/current/oes319092.htm"},{"code":"31-9093","title":"Medical Equipment Preparers","group":"Healthcare Support","major_code":"31","employment":270,"median_wage":65348,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Medical equipment preparers clean and sterilize instruments; physical handling and sterile technique require human presence.","bls_url":"https://www.bls.gov/oes/current/oes319093.htm"},{"code":"31-9094","title":"Medical Transcriptionists","group":"Healthcare Support","major_code":"31","employment":120,"median_wage":46063,"growth_rate":null,"education":null,"ai_exposure":9,"ai_rationale":"Medical transcriptionists convert voice recordings to text reports; AI voice-to-text and clinical documentation tools are rapidly automating this role.","bls_url":"https://www.bls.gov/oes/current/oes319094.htm"},{"code":"31-9095","title":"Pharmacy Aides","group":"Healthcare Support","major_code":"31","employment":210,"median_wage":45498,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Pharmacy aides assist with medication dispensing and inventory; physical handling and customer service require human presence.","bls_url":"https://www.bls.gov/oes/current/oes319095.htm"},{"code":"31-9096","title":"Veterinary Assistants and Laboratory Animal Caretakers","group":"Healthcare Support","major_code":"31","employment":250,"median_wage":38552,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Veterinary assistants provide animal care and facility cleaning; hands-on animal handling is the core function.","bls_url":"https://www.bls.gov/oes/current/oes319096.htm"},{"code":"31-9097","title":"Phlebotomists","group":"Healthcare Support","major_code":"31","employment":410,"median_wage":51021,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Phlebotomists collect blood specimens; hands-on venipuncture requires physical presence and technique.","bls_url":"https://www.bls.gov/oes/current/oes319097.htm"},{"code":"31-9099","title":"Healthcare Support Workers, All Other","group":"Healthcare Support","major_code":"31","employment":580,"median_wage":52214,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"All other healthcare support workers provide hands-on patient or facility support; physical care tasks generally limit AI substitutability.","bls_url":"https://www.bls.gov/oes/current/oes319099.htm"},{"code":"33-1012","title":"First-Line Supervisors of Police and Detectives","group":"Protective Service","major_code":"33","employment":460,"median_wage":132099,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Supervisors of police and detectives oversee law enforcement operations; leadership in high-stakes public safety situations requires human judgment.","bls_url":"https://www.bls.gov/oes/current/oes331012.htm"},{"code":"33-1021","title":"First-Line Supervisors of Firefighting and Prevention Workers","group":"Protective Service","major_code":"33","employment":300,"median_wage":103494,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Supervisors of firefighting workers lead emergency response operations; physical crisis leadership requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes331021.htm"},{"code":"33-1091","title":"First-Line Supervisors of Security Workers","group":"Protective Service","major_code":"33","employment":120,"median_wage":71610,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Supervisors of security workers manage security personnel; oversight of physical security operations requires human judgment.","bls_url":"https://www.bls.gov/oes/current/oes331091.htm"},{"code":"33-2011","title":"Firefighters","group":"Protective Service","major_code":"33","employment":840,"median_wage":77762,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Firefighters respond to fires and emergencies; physical hazard response in dynamic environments requires human strength and judgment.","bls_url":"https://www.bls.gov/oes/current/oes332011.htm"},{"code":"33-2021","title":"Fire Inspectors and Investigators","group":"Protective Service","major_code":"33","employment":30,"median_wage":85400,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Fire inspectors and investigators examine fire scenes and enforce safety codes; field inspection requires human presence but AI aids documentation and pattern analysis.","bls_url":"https://www.bls.gov/oes/current/oes332021.htm"},{"code":"33-3012","title":"Correctional Officers and Jailers","group":"Protective Service","major_code":"33","employment":240,"median_wage":98550,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Correctional officers supervise inmates in secure facilities; physical presence and situational management are central to the role.","bls_url":"https://www.bls.gov/oes/current/oes333012.htm"},{"code":"33-3021","title":"Detectives and Criminal Investigators","group":"Protective Service","major_code":"33","employment":100,"median_wage":103072,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Detectives and criminal investigators gather evidence and interview witnesses; investigative judgment and interpersonal skills require human expertise though AI aids data analysis.","bls_url":"https://www.bls.gov/oes/current/oes333021.htm"},{"code":"33-3051","title":"Police and Sheriff's Patrol Officers","group":"Protective Service","major_code":"33","employment":2210,"median_wage":101230,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Physical patrol, crisis response, and community policing require human presence and judgment in unpredictable situations.","bls_url":"https://www.bls.gov/oes/current/oes333051.htm"},{"code":"33-9021","title":"Private Detectives and Investigators","group":"Protective Service","major_code":"33","employment":150,"median_wage":57485,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Private detectives and investigators gather information on individuals and cases; research and surveillance are increasingly AI-assisted but fieldwork requires human judgment.","bls_url":"https://www.bls.gov/oes/current/oes339021.htm"},{"code":"33-9032","title":"Security Guards","group":"Protective Service","major_code":"33","employment":4410,"median_wage":37749,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Security guards patrol premises and monitor access; physical presence and situational response are central to the role.","bls_url":"https://www.bls.gov/oes/current/oes339032.htm"},{"code":"33-9091","title":"Crossing Guards and Flaggers","group":"Protective Service","major_code":"33","employment":300,"median_wage":44418,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Crossing guards direct pedestrian and vehicle traffic; physical presence and real-time situational judgment are the core function.","bls_url":"https://www.bls.gov/oes/current/oes339091.htm"},{"code":"33-9092","title":"Lifeguards, Ski Patrol, and Other Recreational Protective Service Workers","group":"Protective Service","major_code":"33","employment":420,"median_wage":38650,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Lifeguards and recreational safety workers monitor aquatic environments; physical emergency response requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes339092.htm"},{"code":"33-9094","title":"School Bus Monitors","group":"Protective Service","major_code":"33","employment":50,"median_wage":41110,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"School bus monitors supervise student behavior on buses; physical presence and immediate response are the core function.","bls_url":"https://www.bls.gov/oes/current/oes339094.htm"},{"code":"33-9099","title":"Protective Service Workers, All Other","group":"Protective Service","major_code":"33","employment":1450,"median_wage":38324,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"All other protective service workers provide physical safety and security services; hands-on protection generally limits AI substitutability.","bls_url":"https://www.bls.gov/oes/current/oes339099.htm"},{"code":"35-1011","title":"Chefs and Head Cooks","group":"Food Preparation & Serving","major_code":"35","employment":450,"median_wage":62926,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Chefs and head cooks direct kitchen operations and develop menus; culinary creativity and kitchen management require physical presence though AI may aid menu planning.","bls_url":"https://www.bls.gov/oes/current/oes351011.htm"},{"code":"35-1012","title":"First-Line Supervisors of Food Preparation and Serving Workers","group":"Food Preparation & Serving","major_code":"35","employment":4120,"median_wage":45400,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"First-line supervisors of food preparation workers manage kitchen staff and operations; physical supervision and on-site management are central.","bls_url":"https://www.bls.gov/oes/current/oes351012.htm"},{"code":"35-2011","title":"Cooks, Fast Food","group":"Food Preparation & Serving","major_code":"35","employment":4910,"median_wage":35888,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Manual food preparation; some automation in fast food but the physical manipulation tasks are not yet AI-driven.","bls_url":"https://www.bls.gov/oes/current/oes352011.htm"},{"code":"35-2012","title":"Cooks, Institution and Cafeteria","group":"Food Preparation & Serving","major_code":"35","employment":740,"median_wage":43236,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Institution and cafeteria cooks prepare bulk food for large groups; physical food preparation is the core function.","bls_url":"https://www.bls.gov/oes/current/oes352012.htm"},{"code":"35-2014","title":"Cooks, Restaurant","group":"Food Preparation & Serving","major_code":"35","employment":3870,"median_wage":38453,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Restaurant cooks prepare food to order in varied kitchen environments; physical culinary technique and adaptability are central.","bls_url":"https://www.bls.gov/oes/current/oes352014.htm"},{"code":"35-2015","title":"Cooks, Short Order","group":"Food Preparation & Serving","major_code":"35","employment":970,"median_wage":35319,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Short order cooks prepare simple meals quickly; physical food preparation requires human dexterity.","bls_url":"https://www.bls.gov/oes/current/oes352015.htm"},{"code":"35-2019","title":"Cooks, All Other","group":"Food Preparation & Serving","major_code":"35","employment":70,"median_wage":35230,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"All other cooks prepare food in various settings; hands-on culinary work is the core function.","bls_url":"https://www.bls.gov/oes/current/oes352019.htm"},{"code":"35-2021","title":"Food Preparation Workers","group":"Food Preparation & Serving","major_code":"35","employment":2660,"median_wage":36245,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Food preparation workers perform basic food prep tasks; physical cutting, washing, and portioning require human dexterity.","bls_url":"https://www.bls.gov/oes/current/oes352021.htm"},{"code":"35-3011","title":"Bartenders","group":"Food Preparation & Serving","major_code":"35","employment":1490,"median_wage":34089,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Bartenders mix drinks and serve customers; physical drink preparation and customer interaction are central to the role.","bls_url":"https://www.bls.gov/oes/current/oes353011.htm"},{"code":"35-3023","title":"Fast Food and Counter Workers","group":"Food Preparation & Serving","major_code":"35","employment":17350,"median_wage":36975,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Fast food and counter workers take orders and serve food at counters; some automation at kiosks but food handling and customer service remain largely human.","bls_url":"https://www.bls.gov/oes/current/oes353023.htm"},{"code":"35-3031","title":"Waiters and Waitresses","group":"Food Preparation & Serving","major_code":"35","employment":5430,"median_wage":33951,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Physical service work requiring human interaction and adaptability in dining environments.","bls_url":"https://www.bls.gov/oes/current/oes353031.htm"},{"code":"35-3041","title":"Food Servers, Nonrestaurant","group":"Food Preparation & Serving","major_code":"35","employment":850,"median_wage":35872,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Food servers in non-restaurant settings serve meals in hospitals, schools, and care facilities; physical food service and customer interaction are central.","bls_url":"https://www.bls.gov/oes/current/oes353041.htm"},{"code":"35-9011","title":"Dining Room and Cafeteria Attendants and Bartender Helpers","group":"Food Preparation & Serving","major_code":"35","employment":1640,"median_wage":34236,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Dining room and cafeteria attendants clean tables and assist servers; physical cleaning and setup tasks are hands-on.","bls_url":"https://www.bls.gov/oes/current/oes359011.htm"},{"code":"35-9021","title":"Dishwashers","group":"Food Preparation & Serving","major_code":"35","employment":1770,"median_wage":35035,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Dishwashers clean kitchen equipment and utensils; physical washing tasks are hands-on.","bls_url":"https://www.bls.gov/oes/current/oes359021.htm"},{"code":"35-9031","title":"Hosts and Hostesses, Restaurant, Lounge, and Coffee Shop","group":"Food Preparation & Serving","major_code":"35","employment":1070,"median_wage":33970,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Hosts and hostesses seat guests and manage dining room flow; customer greeting and real-time seating coordination require human interaction.","bls_url":"https://www.bls.gov/oes/current/oes359031.htm"},{"code":"35-9099","title":"Food Preparation and Serving Related Workers, All Other","group":"Food Preparation & Serving","major_code":"35","employment":460,"median_wage":34093,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"All other food preparation and serving workers perform physical food service tasks; hands-on food work limits AI substitutability.","bls_url":"https://www.bls.gov/oes/current/oes359099.htm"},{"code":"37-1011","title":"First-Line Supervisors of Housekeeping and Janitorial Workers","group":"Building & Grounds Cleaning","major_code":"37","employment":420,"median_wage":58160,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Supervisors of housekeeping and janitorial workers manage cleaning staff; physical operations oversight requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes371011.htm"},{"code":"37-1012","title":"First-Line Supervisors of Landscaping, Lawn Service, and Groundskeeping Workers","group":"Building & Grounds Cleaning","major_code":"37","employment":260,"median_wage":62599,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Supervisors of landscaping workers manage outdoor maintenance crews; physical outdoor operations oversight requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes371012.htm"},{"code":"37-2011","title":"Janitors and Cleaners, Except Maids and Housekeeping Cleaners","group":"Building & Grounds Cleaning","major_code":"37","employment":7360,"median_wage":39882,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Janitors and cleaners maintain building interiors; physical cleaning tasks in variable environments require human dexterity.","bls_url":"https://www.bls.gov/oes/current/oes372011.htm"},{"code":"37-2012","title":"Maids and Housekeeping Cleaners","group":"Building & Grounds Cleaning","major_code":"37","employment":2370,"median_wage":37267,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Maids and housekeeping cleaners clean rooms and common areas; physical cleaning in varied settings requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes372012.htm"},{"code":"37-2021","title":"Pest Control Workers","group":"Building & Grounds Cleaning","major_code":"37","employment":440,"median_wage":43326,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Pest control workers apply pesticides and inspect properties; physical treatment application and property inspection require human presence.","bls_url":"https://www.bls.gov/oes/current/oes372021.htm"},{"code":"37-3011","title":"Landscaping and Groundskeeping Workers","group":"Building & Grounds Cleaning","major_code":"37","employment":2740,"median_wage":42111,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Landscaping and groundskeeping workers maintain outdoor spaces; physical outdoor maintenance work requires human dexterity and judgment.","bls_url":"https://www.bls.gov/oes/current/oes373011.htm"},{"code":"37-3012","title":"Pesticide Handlers, Sprayers, and Applicators, Vegetation","group":"Building & Grounds Cleaning","major_code":"37","employment":70,"median_wage":41205,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Pesticide handlers and applicators apply vegetation management products; physical outdoor application requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes373012.htm"},{"code":"37-3013","title":"Tree Trimmers and Pruners","group":"Building & Grounds Cleaning","major_code":"37","employment":150,"median_wage":65220,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Tree trimmers and pruners maintain trees and shrubs; physical arborist work in variable outdoor environments is hands-on.","bls_url":"https://www.bls.gov/oes/current/oes373013.htm"},{"code":"39-1014","title":"First-Line Supervisors of Entertainment and Recreation Workers, Except Gambling Services","group":"Personal Care & Service","major_code":"39","employment":330,"median_wage":50115,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Supervisors of entertainment and recreation workers manage venue and program staff; physical operations oversight requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes391014.htm"},{"code":"39-1022","title":"First-Line Supervisors of Personal Service Workers","group":"Personal Care & Service","major_code":"39","employment":370,"median_wage":47898,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Supervisors of personal service workers manage salons and care facilities; hands-on service operations oversight is human-centered.","bls_url":"https://www.bls.gov/oes/current/oes391022.htm"},{"code":"39-2011","title":"Animal Trainers","group":"Personal Care & Service","major_code":"39","employment":30,"median_wage":36870,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Animal trainers work directly with animals using behavioral techniques; physical animal handling and conditioning are hands-on.","bls_url":"https://www.bls.gov/oes/current/oes392011.htm"},{"code":"39-2021","title":"Animal Caretakers","group":"Personal Care & Service","major_code":"39","employment":670,"median_wage":36002,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Animal caretakers feed, clean, and provide basic care for animals; hands-on animal care is the core function.","bls_url":"https://www.bls.gov/oes/current/oes392021.htm"},{"code":"39-3011","title":"Gambling Dealers","group":"Personal Care & Service","major_code":"39","employment":300,"median_wage":36090,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Gambling dealers operate table games; physical card and chip handling and customer interaction are central to the role.","bls_url":"https://www.bls.gov/oes/current/oes393011.htm"},{"code":"39-3031","title":"Ushers, Lobby Attendants, and Ticket Takers","group":"Personal Care & Service","major_code":"39","employment":190,"median_wage":34362,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Ushers, lobby attendants, and ticket takers check tickets and direct guests; physical presence and customer service are the core functions.","bls_url":"https://www.bls.gov/oes/current/oes393031.htm"},{"code":"39-3091","title":"Amusement and Recreation Attendants","group":"Personal Care & Service","major_code":"39","employment":950,"median_wage":34008,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Amusement and recreation attendants operate rides and assist guests; physical operation and safety monitoring require human presence.","bls_url":"https://www.bls.gov/oes/current/oes393091.htm"},{"code":"39-4021","title":"Funeral Attendants","group":"Personal Care & Service","major_code":"39","employment":40,"median_wage":36850,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Funeral attendants assist with funeral services and body preparation; sensitive physical service work requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes394021.htm"},{"code":"39-4031","title":"Morticians, Undertakers, and Funeral Arrangers","group":"Personal Care & Service","major_code":"39","employment":50,"median_wage":48550,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Morticians, undertakers, and funeral arrangers prepare bodies and coordinate services; the role blends physical work with administrative and family counseling components.","bls_url":"https://www.bls.gov/oes/current/oes394031.htm"},{"code":"39-5012","title":"Hairdressers, Hairstylists, and Cosmetologists","group":"Personal Care & Service","major_code":"39","employment":580,"median_wage":36945,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Hairdressers and cosmetologists provide hair cutting, coloring, and styling services; physical hair care and client consultation require human presence.","bls_url":"https://www.bls.gov/oes/current/oes395012.htm"},{"code":"39-5092","title":"Manicurists and Pedicurists","group":"Personal Care & Service","major_code":"39","employment":940,"median_wage":34623,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Manicurists and pedicurists provide nail care services; hands-on nail care requires physical dexterity and client interaction.","bls_url":"https://www.bls.gov/oes/current/oes395092.htm"},{"code":"39-5094","title":"Skincare Specialists","group":"Personal Care & Service","major_code":"39","employment":280,"median_wage":36594,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Skincare specialists provide skin treatments and facials; hands-on physical treatment requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes395094.htm"},{"code":"39-6012","title":"Concierges","group":"Personal Care & Service","major_code":"39","employment":30,"median_wage":36530,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Concierges arrange services and provide guest information; AI chatbots can handle routine requests but personalized service requires human judgment.","bls_url":"https://www.bls.gov/oes/current/oes396012.htm"},{"code":"39-9011","title":"Childcare Workers","group":"Personal Care & Service","major_code":"39","employment":1260,"median_wage":37694,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Childcare workers supervise and care for children; physical supervision, nurturing, and developmental engagement require human presence.","bls_url":"https://www.bls.gov/oes/current/oes399011.htm"},{"code":"39-9031","title":"Exercise Trainers and Group Fitness Instructors","group":"Personal Care & Service","major_code":"39","employment":760,"median_wage":46485,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Exercise trainers and group fitness instructors lead classes and develop individualized programs; physical instruction and motivation require human presence.","bls_url":"https://www.bls.gov/oes/current/oes399031.htm"},{"code":"39-9032","title":"Recreation Workers","group":"Personal Care & Service","major_code":"39","employment":2050,"median_wage":35844,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Recreation workers plan and lead activities for various populations; physical activity facilitation and participant engagement require human presence.","bls_url":"https://www.bls.gov/oes/current/oes399032.htm"},{"code":"39-9041","title":"Residential Advisors","group":"Personal Care & Service","major_code":"39","employment":140,"median_wage":50247,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Residential advisors supervise students or residents and provide guidance; human presence, counseling, and community building are central to the role.","bls_url":"https://www.bls.gov/oes/current/oes399041.htm"},{"code":"39-9099","title":"Personal Care and Service Workers, All Other","group":"Personal Care & Service","major_code":"39","employment":130,"median_wage":36726,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"All other personal care and service workers provide direct human services; physical service and relationship-building limit AI substitutability.","bls_url":"https://www.bls.gov/oes/current/oes399099.htm"},{"code":"41-1011","title":"First-Line Supervisors of Retail Sales Workers","group":"Sales & Related","major_code":"41","employment":4160,"median_wage":49177,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"First-line supervisors of retail sales workers manage store staff and operations; physical presence and team leadership are central alongside administrative tasks.","bls_url":"https://www.bls.gov/oes/current/oes411011.htm"},{"code":"41-1012","title":"First-Line Supervisors of Non-Retail Sales Workers","group":"Sales & Related","major_code":"41","employment":510,"median_wage":78530,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"First-line supervisors of non-retail sales workers manage sales teams and territories; coaching, forecasting, and CRM work are increasingly AI-assisted.","bls_url":"https://www.bls.gov/oes/current/oes411012.htm"},{"code":"41-2011","title":"Cashiers","group":"Sales & Related","major_code":"41","employment":13490,"median_wage":35500,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Cashiers process transactions and assist customers; self-checkout automation and AI-assisted payment systems are rapidly reducing demand for human cashiers.","bls_url":"https://www.bls.gov/oes/current/oes412011.htm"},{"code":"41-2021","title":"Counter and Rental Clerks","group":"Sales & Related","major_code":"41","employment":1970,"median_wage":40025,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Counter and rental clerks process transactions and assist customers; AI is automating routine transactions but complex customer service remains human.","bls_url":"https://www.bls.gov/oes/current/oes412021.htm"},{"code":"41-2022","title":"Parts Salespersons","group":"Sales & Related","major_code":"41","employment":1300,"median_wage":40989,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Parts salespersons identify and sell parts to customers; product knowledge and customer consultation are important though AI aids parts lookup.","bls_url":"https://www.bls.gov/oes/current/oes412022.htm"},{"code":"41-2031","title":"Retail Salespersons","group":"Sales & Related","major_code":"41","employment":11980,"median_wage":35876,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Retail salespersons assist customers and process sales; AI is transforming product recommendations and checkout but in-store assistance remains largely human.","bls_url":"https://www.bls.gov/oes/current/oes412031.htm"},{"code":"41-3011","title":"Advertising Sales Agents","group":"Sales & Related","major_code":"41","employment":50,"median_wage":38510,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Advertising sales agents sell advertising space and digital marketing services; AI aids targeting analysis and proposal generation but client relationships are human.","bls_url":"https://www.bls.gov/oes/current/oes413011.htm"},{"code":"41-3021","title":"Insurance Sales Agents","group":"Sales & Related","major_code":"41","employment":1150,"median_wage":63735,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Insurance sales agents sell insurance products and advise clients; AI aids underwriting and product matching but trust-based client relationships remain human.","bls_url":"https://www.bls.gov/oes/current/oes413021.htm"},{"code":"41-3031","title":"Securities, Commodities, and Financial Services Sales Agents","group":"Sales & Related","major_code":"41","employment":860,"median_wage":62598,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Securities and financial services sales agents manage client portfolios and execute trades; AI automates trading and analysis but client relationship management remains human.","bls_url":"https://www.bls.gov/oes/current/oes413031.htm"},{"code":"41-3091","title":"Sales Representatives of Services, Except Advertising, Insurance, Financial Services, and Travel","group":"Sales & Related","major_code":"41","employment":2460,"median_wage":59616,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Sales representatives of services develop client relationships and generate revenue; AI aids lead generation and proposal writing but relationship-based selling remains human.","bls_url":"https://www.bls.gov/oes/current/oes413091.htm"},{"code":"41-4011","title":"Sales Representatives, Wholesale and Manufacturing, Technical and Scientific Products","group":"Sales & Related","major_code":"41","employment":230,"median_wage":79025,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Technical and scientific products sales representatives combine product knowledge with client relationships; AI aids technical documentation and quote generation.","bls_url":"https://www.bls.gov/oes/current/oes414011.htm"},{"code":"41-4012","title":"Sales Representatives, Wholesale and Manufacturing, Except Technical and Scientific Products","group":"Sales & Related","major_code":"41","employment":3840,"median_wage":74372,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Wholesale and manufacturing sales representatives maintain client accounts; AI aids order processing and inventory management but relationship management is human.","bls_url":"https://www.bls.gov/oes/current/oes414012.htm"},{"code":"41-9011","title":"Demonstrators and Product Promoters","group":"Sales & Related","major_code":"41","employment":460,"median_wage":36141,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Demonstrators and product promoters showcase products to customers; live demonstration requires physical presence though AI aids product information delivery.","bls_url":"https://www.bls.gov/oes/current/oes419011.htm"},{"code":"41-9022","title":"Real Estate Sales Agents","group":"Sales & Related","major_code":"41","employment":120,"median_wage":51646,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Real estate sales agents match buyers and sellers and facilitate transactions; AI aids property search but client relationships and negotiation require human presence.","bls_url":"https://www.bls.gov/oes/current/oes419022.htm"},{"code":"41-9041","title":"Telemarketers","group":"Sales & Related","major_code":"41","employment":40,"median_wage":35490,"growth_rate":null,"education":null,"ai_exposure":10,"ai_rationale":"Scripted phone sales is fully automatable by AI voice agents today.","bls_url":"https://www.bls.gov/oes/current/oes419041.htm"},{"code":"41-9099","title":"Sales and Related Workers, All Other","group":"Sales & Related","major_code":"41","employment":640,"median_wage":50010,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"All other sales and related workers support sales operations; AI aids CRM, lead management, and proposal generation across sales functions.","bls_url":"https://www.bls.gov/oes/current/oes419099.htm"},{"code":"43-1011","title":"First-Line Supervisors of Office and Administrative Support Workers","group":"Office & Administrative Support","major_code":"43","employment":4640,"median_wage":70764,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"First-line supervisors of office and admin support workers manage clerical staff; AI is automating many tasks their staff perform but supervisory judgment and team management remain human.","bls_url":"https://www.bls.gov/oes/current/oes431011.htm"},{"code":"43-2011","title":"Switchboard Operators, Including Answering Service","group":"Office & Administrative Support","major_code":"43","employment":250,"median_wage":56218,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Switchboard operators route calls and manage answering services; AI voice routing and chatbots are displacing this role rapidly.","bls_url":"https://www.bls.gov/oes/current/oes432011.htm"},{"code":"43-3011","title":"Bill and Account Collectors","group":"Office & Administrative Support","major_code":"43","employment":300,"median_wage":54262,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Bill and account collectors contact debtors and negotiate payment arrangements; AI voice agents and automated collection systems are taking over routine collection tasks.","bls_url":"https://www.bls.gov/oes/current/oes433011.htm"},{"code":"43-3021","title":"Billing and Posting Clerks","group":"Office & Administrative Support","major_code":"43","employment":1330,"median_wage":48254,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Billing and posting clerks process invoices and payment records; this is primarily digital data entry and processing where AI automation is highly applicable.","bls_url":"https://www.bls.gov/oes/current/oes433021.htm"},{"code":"43-3031","title":"Bookkeeping, Accounting, and Auditing Clerks","group":"Office & Administrative Support","major_code":"43","employment":4540,"median_wage":53795,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Bookkeeping, accounting, and auditing clerks maintain financial records; AI accounting tools are rapidly automating reconciliation, transaction recording, and report generation.","bls_url":"https://www.bls.gov/oes/current/oes433031.htm"},{"code":"43-3051","title":"Payroll and Timekeeping Clerks","group":"Office & Administrative Support","major_code":"43","employment":800,"median_wage":57926,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Payroll and timekeeping clerks process employee compensation and time records; payroll processing is highly rule-based and digital where AI automation is advanced.","bls_url":"https://www.bls.gov/oes/current/oes433051.htm"},{"code":"43-3061","title":"Procurement Clerks","group":"Office & Administrative Support","major_code":"43","employment":280,"median_wage":55292,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Procurement clerks process purchase orders and maintain supplier records; AI is automating order processing and inventory management substantially.","bls_url":"https://www.bls.gov/oes/current/oes433061.htm"},{"code":"43-3071","title":"Tellers","group":"Office & Administrative Support","major_code":"43","employment":890,"median_wage":44392,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Tellers process banking transactions and assist customers; AI-driven automation is reducing teller volumes as digital banking expands.","bls_url":"https://www.bls.gov/oes/current/oes433071.htm"},{"code":"43-4031","title":"Court, Municipal, and License Clerks","group":"Office & Administrative Support","major_code":"43","employment":530,"median_wage":61616,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Court, municipal, and license clerks process legal and administrative documents; digital document processing is AI-amenable but some public-facing service remains human.","bls_url":"https://www.bls.gov/oes/current/oes434031.htm"},{"code":"43-4051","title":"Customer Service Representatives","group":"Office & Administrative Support","major_code":"43","employment":4670,"median_wage":46459,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Phone and digital customer support is heavily targeted by AI chatbots and voice agents.","bls_url":"https://www.bls.gov/oes/current/oes434051.htm"},{"code":"43-4061","title":"Eligibility Interviewers, Government Programs","group":"Office & Administrative Support","major_code":"43","employment":690,"median_wage":61606,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Eligibility interviewers determine client eligibility for government programs; AI aids data lookup and eligibility determination but case complexity and client interaction require human judgment.","bls_url":"https://www.bls.gov/oes/current/oes434061.htm"},{"code":"43-4071","title":"File Clerks","group":"Office & Administrative Support","major_code":"43","employment":300,"median_wage":49365,"growth_rate":null,"education":null,"ai_exposure":9,"ai_rationale":"File clerks retrieve and maintain paper and digital records; digital records management and retrieval are highly AI-automatable tasks.","bls_url":"https://www.bls.gov/oes/current/oes434071.htm"},{"code":"43-4081","title":"Hotel, Motel, and Resort Desk Clerks","group":"Office & Administrative Support","major_code":"43","employment":570,"median_wage":36098,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Hotel, motel, and resort desk clerks check guests in and out and handle reservations; self-service kiosks and AI are automating standard check-in but complex guest service remains human.","bls_url":"https://www.bls.gov/oes/current/oes434081.htm"},{"code":"43-4111","title":"Interviewers, Except Eligibility and Loan","group":"Office & Administrative Support","major_code":"43","employment":760,"median_wage":58808,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Interviewers conduct surveys and collect information by phone or computer; AI is automating survey administration and data collection substantially.","bls_url":"https://www.bls.gov/oes/current/oes434111.htm"},{"code":"43-4121","title":"Library Assistants, Clerical","group":"Office & Administrative Support","major_code":"43","employment":420,"median_wage":42759,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Library assistants support library operations and assist patrons; AI aids catalog search but patron assistance and physical collection management remain human.","bls_url":"https://www.bls.gov/oes/current/oes434121.htm"},{"code":"43-4131","title":"Loan Interviewers and Clerks","group":"Office & Administrative Support","major_code":"43","employment":300,"median_wage":51888,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Loan interviewers and clerks collect financial information for loan applications; AI is automating data collection and creditworthiness assessment substantially.","bls_url":"https://www.bls.gov/oes/current/oes434131.htm"},{"code":"43-4141","title":"New Accounts Clerks","group":"Office & Administrative Support","major_code":"43","employment":30,"median_wage":46740,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"New accounts clerks gather customer information and open accounts; digital onboarding and AI-assisted KYC are automating this role.","bls_url":"https://www.bls.gov/oes/current/oes434141.htm"},{"code":"43-4151","title":"Order Clerks","group":"Office & Administrative Support","major_code":"43","employment":320,"median_wage":46108,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Order clerks receive and process customer orders; AI and automated order management systems are increasingly handling this work.","bls_url":"https://www.bls.gov/oes/current/oes434151.htm"},{"code":"43-4161","title":"Human Resources Assistants, Except Payroll and Timekeeping","group":"Office & Administrative Support","major_code":"43","employment":430,"median_wage":55433,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Human resources assistants process employment records and assist with HR administration; AI is automating data processing and documentation but employee-facing tasks remain human.","bls_url":"https://www.bls.gov/oes/current/oes434161.htm"},{"code":"43-4171","title":"Receptionists and Information Clerks","group":"Office & Administrative Support","major_code":"43","employment":2370,"median_wage":40022,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Receptionists and information clerks greet visitors and route inquiries; AI chatbots and voice systems handle increasing shares of routine inquiries but physical reception remains human.","bls_url":"https://www.bls.gov/oes/current/oes434171.htm"},{"code":"43-4199","title":"Information and Record Clerks, All Other","group":"Office & Administrative Support","major_code":"43","employment":760,"median_wage":53903,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"All other information and record clerks process and maintain records; digital record processing is highly AI-amenable.","bls_url":"https://www.bls.gov/oes/current/oes434199.htm"},{"code":"43-5011","title":"Cargo and Freight Agents","group":"Office & Administrative Support","major_code":"43","employment":250,"median_wage":54410,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Cargo and freight agents coordinate shipment logistics; AI aids tracking and routing but coordination with carriers and clients requires human judgment.","bls_url":"https://www.bls.gov/oes/current/oes435011.htm"},{"code":"43-5021","title":"Couriers and Messengers","group":"Office & Administrative Support","major_code":"43","employment":260,"median_wage":42581,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Couriers and messengers physically deliver documents and packages; physical delivery requires human presence though route optimization is AI-assisted.","bls_url":"https://www.bls.gov/oes/current/oes435021.htm"},{"code":"43-5031","title":"Public Safety Telecommunicators","group":"Office & Administrative Support","major_code":"43","employment":280,"median_wage":73084,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Public safety telecommunicators dispatch emergency services; real-time crisis coordination and judgment require human presence though AI aids call processing.","bls_url":"https://www.bls.gov/oes/current/oes435031.htm"},{"code":"43-5032","title":"Dispatchers, Except Police, Fire, and Ambulance","group":"Office & Administrative Support","major_code":"43","employment":1090,"median_wage":53277,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"Dispatchers coordinate delivery routes and communicate with drivers; AI aids route optimization and scheduling but real-time coordination requires human judgment.","bls_url":"https://www.bls.gov/oes/current/oes435032.htm"},{"code":"43-5051","title":"Postal Service Clerks","group":"Office & Administrative Support","major_code":"43","employment":220,"median_wage":63554,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Postal service clerks process mail and assist customers at post offices; automated sorting and self-service are reducing manual postal clerk tasks.","bls_url":"https://www.bls.gov/oes/current/oes435051.htm"},{"code":"43-5052","title":"Postal Service Mail Carriers","group":"Office & Administrative Support","major_code":"43","employment":1160,"median_wage":61160,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Postal service mail carriers deliver mail along physical routes; walking or driving delivery routes requires physical presence though route optimization is AI-assisted.","bls_url":"https://www.bls.gov/oes/current/oes435052.htm"},{"code":"43-5061","title":"Production, Planning, and Expediting Clerks","group":"Office & Administrative Support","major_code":"43","employment":1740,"median_wage":54226,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Production, planning, and expediting clerks coordinate manufacturing schedules; AI is advancing in production scheduling and supply chain coordination.","bls_url":"https://www.bls.gov/oes/current/oes435061.htm"},{"code":"43-5071","title":"Shipping, Receiving, and Inventory Clerks","group":"Office & Administrative Support","major_code":"43","employment":6340,"median_wage":41150,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Shipping, receiving, and inventory clerks track goods and maintain records; AI and warehouse management systems are increasingly automating inventory tracking.","bls_url":"https://www.bls.gov/oes/current/oes435071.htm"},{"code":"43-5111","title":"Weighers, Measurers, Checkers, and Samplers, Recordkeeping","group":"Office & Administrative Support","major_code":"43","employment":650,"median_wage":52620,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Weighers, measurers, and checkers record product measurements and quantities; digital measurement systems and AI are automating data collection substantially.","bls_url":"https://www.bls.gov/oes/current/oes435111.htm"},{"code":"43-6011","title":"Executive Secretaries and Executive Administrative Assistants","group":"Office & Administrative Support","major_code":"43","employment":1190,"median_wage":80197,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Executive secretaries and executive administrative assistants manage schedules and communications for executives; AI is rapidly automating email drafting, scheduling, and document preparation.","bls_url":"https://www.bls.gov/oes/current/oes436011.htm"},{"code":"43-6012","title":"Legal Secretaries and Administrative Assistants","group":"Office & Administrative Support","major_code":"43","employment":270,"median_wage":39068,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Legal secretaries prepare legal documents and manage case files; document preparation and file management are highly AI-amenable in legal settings.","bls_url":"https://www.bls.gov/oes/current/oes436012.htm"},{"code":"43-6013","title":"Medical Secretaries and Administrative Assistants","group":"Office & Administrative Support","major_code":"43","employment":2970,"median_wage":46711,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Medical secretaries handle patient correspondence and medical documentation; clinical documentation AI and administrative automation are transforming this role.","bls_url":"https://www.bls.gov/oes/current/oes436013.htm"},{"code":"43-6014","title":"Secretaries and Administrative Assistants, Except Legal, Medical, and Executive","group":"Office & Administrative Support","major_code":"43","employment":5120,"median_wage":51145,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Primarily digital coordination, scheduling, and communication tasks that AI tools are rapidly automating.","bls_url":"https://www.bls.gov/oes/current/oes436014.htm"},{"code":"43-9021","title":"Data Entry Keyers","group":"Office & Administrative Support","major_code":"43","employment":360,"median_wage":42342,"growth_rate":null,"education":null,"ai_exposure":10,"ai_rationale":"Routine digital data transcription with no physical component; AI can already fully automate this role.","bls_url":"https://www.bls.gov/oes/current/oes439021.htm"},{"code":"43-9022","title":"Word Processors and Typists","group":"Office & Administrative Support","major_code":"43","employment":370,"median_wage":46553,"growth_rate":null,"education":null,"ai_exposure":9,"ai_rationale":"Word processors and typists create and format documents; AI writing and formatting tools are largely supplanting this role.","bls_url":"https://www.bls.gov/oes/current/oes439022.htm"},{"code":"43-9041","title":"Insurance Claims and Policy Processing Clerks","group":"Office & Administrative Support","major_code":"43","employment":660,"median_wage":50216,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Insurance claims and policy processing clerks process claims and update records; rule-based document processing is highly AI-automatable.","bls_url":"https://www.bls.gov/oes/current/oes439041.htm"},{"code":"43-9051","title":"Mail Clerks and Mail Machine Operators, Except Postal Service","group":"Office & Administrative Support","major_code":"43","employment":70,"median_wage":39720,"growth_rate":null,"education":null,"ai_exposure":8,"ai_rationale":"Mail clerks and mail machine operators sort and process mail; automated sorting and digital communication are reducing mail volume and clerk demand.","bls_url":"https://www.bls.gov/oes/current/oes439051.htm"},{"code":"43-9061","title":"Office Clerks, General","group":"Office & Administrative Support","major_code":"43","employment":9440,"median_wage":46656,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"Office clerks perform diverse administrative tasks; AI is automating scheduling, filing, and routine correspondence substantially.","bls_url":"https://www.bls.gov/oes/current/oes439061.htm"},{"code":"43-9199","title":"Office and Administrative Support Workers, All Other","group":"Office & Administrative Support","major_code":"43","employment":830,"median_wage":51234,"growth_rate":null,"education":null,"ai_exposure":7,"ai_rationale":"All other office and administrative support workers perform clerical tasks; AI is broadly applicable to digital administrative work.","bls_url":"https://www.bls.gov/oes/current/oes439199.htm"},{"code":"45-1011","title":"First-Line Supervisors of Farming, Fishing, and Forestry Workers","group":"Farming, Fishing & Forestry","major_code":"45","employment":880,"median_wage":58180,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"First-line supervisors of farming, fishing, and forestry workers manage field crews; physical outdoor operations oversight requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes451011.htm"},{"code":"45-2011","title":"Agricultural Inspectors","group":"Farming, Fishing & Forestry","major_code":"45","employment":80,"median_wage":70386,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Agricultural inspectors examine agricultural products for quality and compliance; physical inspection requires human presence though AI aids documentation.","bls_url":"https://www.bls.gov/oes/current/oes452011.htm"},{"code":"45-2041","title":"Graders and Sorters, Agricultural Products","group":"Farming, Fishing & Forestry","major_code":"45","employment":1090,"median_wage":34620,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Graders and sorters manually or mechanically sort agricultural products; physical handling and quality assessment are hands-on tasks.","bls_url":"https://www.bls.gov/oes/current/oes452041.htm"},{"code":"45-2091","title":"Agricultural Equipment Operators","group":"Farming, Fishing & Forestry","major_code":"45","employment":860,"median_wage":39432,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Agricultural equipment operators drive and operate farming machinery; physical equipment operation requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes452091.htm"},{"code":"45-2092","title":"Farmworkers and Laborers, Crop, Nursery, and Greenhouse","group":"Farming, Fishing & Forestry","major_code":"45","employment":13260,"median_wage":36726,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Work is entirely physical \u2014 harvesting, planting, and tending crops in unpredictable outdoor environments; AI has minimal direct impact on daily tasks.","bls_url":"https://www.bls.gov/oes/current/oes452092.htm"},{"code":"45-2093","title":"Farmworkers, Farm, Ranch, and Aquacultural Animals","group":"Farming, Fishing & Forestry","major_code":"45","employment":180,"median_wage":37381,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Farmworkers caring for animals feed, clean, and monitor livestock; hands-on animal care requires physical presence.","bls_url":"https://www.bls.gov/oes/current/oes452093.htm"},{"code":"45-2099","title":"Agricultural Workers, All Other","group":"Farming, Fishing & Forestry","major_code":"45","employment":150,"median_wage":45348,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"All other agricultural workers perform physical farm labor; outdoor physical work limits AI substitutability.","bls_url":"https://www.bls.gov/oes/current/oes452099.htm"},{"code":"47-1011","title":"First-Line Supervisors of Construction Trades and Extraction Workers","group":"Construction & Extraction","major_code":"47","employment":2200,"median_wage":87551,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"First-line supervisors of construction workers manage crews on job sites; physical site oversight and crew management require human presence.","bls_url":"https://www.bls.gov/oes/current/oes471011.htm"},{"code":"47-2021","title":"Brickmasons and Blockmasons","group":"Construction & Extraction","major_code":"47","employment":130,"median_wage":77510,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Brickmasons lay bricks and blocks to construct walls and structures; physical masonry craft requires human dexterity.","bls_url":"https://www.bls.gov/oes/current/oes472021.htm"},{"code":"47-2022","title":"Stonemasons","group":"Construction & Extraction","major_code":"47","employment":30,"median_wage":68360,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Stonemasons cut and set stone for construction and decorative purposes; physical stonework requires skilled human craftsmanship.","bls_url":"https://www.bls.gov/oes/current/oes472022.htm"},{"code":"47-2031","title":"Carpenters","group":"Construction & Extraction","major_code":"47","employment":3270,"median_wage":64111,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Carpenters frame, install, and finish wood structures; physical carpentry craft in variable environments requires human dexterity.","bls_url":"https://www.bls.gov/oes/current/oes472031.htm"},{"code":"47-2042","title":"Floor Layers, Except Carpet, Wood, and Hard Tiles","group":"Construction & Extraction","major_code":"47","employment":230,"median_wage":70385,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Floor layers install flooring materials; physical floor installation requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes472042.htm"},{"code":"47-2044","title":"Tile and Stone Setters","group":"Construction & Extraction","major_code":"47","employment":270,"median_wage":56263,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Tile and stone setters install tile and stone surfaces; physical installation craft requires human dexterity.","bls_url":"https://www.bls.gov/oes/current/oes472044.htm"},{"code":"47-2051","title":"Cement Masons and Concrete Finishers","group":"Construction & Extraction","major_code":"47","employment":1270,"median_wage":58347,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Cement masons finish concrete surfaces; physical concrete finishing craft requires human skill.","bls_url":"https://www.bls.gov/oes/current/oes472051.htm"},{"code":"47-2061","title":"Construction Laborers","group":"Construction & Extraction","major_code":"47","employment":3010,"median_wage":55297,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Physical labor on construction sites in unpredictable environments; robotics and AI have limited penetration in this sector.","bls_url":"https://www.bls.gov/oes/current/oes472061.htm"},{"code":"47-2073","title":"Operating Engineers and Other Construction Equipment Operators","group":"Construction & Extraction","major_code":"47","employment":1380,"median_wage":80933,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Operating engineers control heavy construction equipment; physical equipment operation in varied terrain requires human judgment.","bls_url":"https://www.bls.gov/oes/current/oes472073.htm"},{"code":"47-2081","title":"Drywall and Ceiling Tile Installers","group":"Construction & Extraction","major_code":"47","employment":770,"median_wage":63283,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Drywall and ceiling tile installers hang drywall and install ceiling systems; physical installation in varied spaces requires human dexterity.","bls_url":"https://www.bls.gov/oes/current/oes472081.htm"},{"code":"47-2082","title":"Tapers","group":"Construction & Extraction","major_code":"47","employment":60,"median_wage":75870,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Tapers apply joint compound to drywall seams; physical finishing craft requires human skill.","bls_url":"https://www.bls.gov/oes/current/oes472082.htm"},{"code":"47-2111","title":"Electricians","group":"Construction & Extraction","major_code":"47","employment":2070,"median_wage":74264,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Electricians install and maintain electrical systems; physical wiring and troubleshooting require human dexterity and judgment.","bls_url":"https://www.bls.gov/oes/current/oes472111.htm"},{"code":"47-2121","title":"Glaziers","group":"Construction & Extraction","major_code":"47","employment":110,"median_wage":62210,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Glaziers install glass in buildings; physical glass installation requires careful human handling.","bls_url":"https://www.bls.gov/oes/current/oes472121.htm"},{"code":"47-2141","title":"Painters, Construction and Maintenance","group":"Construction & Extraction","major_code":"47","employment":1190,"median_wage":49386,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Painters apply paint and coatings to building surfaces; physical painting in variable conditions requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes472141.htm"},{"code":"47-2151","title":"Pipelayers","group":"Construction & Extraction","major_code":"47","employment":90,"median_wage":47890,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Pipelayers install pipes for water, sewer, and drainage systems; physical trench and pipe work requires human labor.","bls_url":"https://www.bls.gov/oes/current/oes472151.htm"},{"code":"47-2152","title":"Plumbers, Pipefitters, and Steamfitters","group":"Construction & Extraction","major_code":"47","employment":1260,"median_wage":60971,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Plumbers, pipefitters, and steamfitters install and repair piping systems; physical plumbing work requires skilled human dexterity.","bls_url":"https://www.bls.gov/oes/current/oes472152.htm"},{"code":"47-2161","title":"Plasterers and Stucco Masons","group":"Construction & Extraction","major_code":"47","employment":300,"median_wage":58285,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Plasterers and stucco masons apply plaster and stucco finishes; physical finishing craft requires human skill.","bls_url":"https://www.bls.gov/oes/current/oes472161.htm"},{"code":"47-2181","title":"Roofers","group":"Construction & Extraction","major_code":"47","employment":580,"median_wage":61637,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Roofers install and repair roofing systems; physical rooftop work in variable conditions requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes472181.htm"},{"code":"47-2211","title":"Sheet Metal Workers","group":"Construction & Extraction","major_code":"47","employment":170,"median_wage":76699,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Sheet metal workers fabricate and install sheet metal products; physical metalwork requires skilled human craftsmanship.","bls_url":"https://www.bls.gov/oes/current/oes472211.htm"},{"code":"47-2221","title":"Structural Iron and Steel Workers","group":"Construction & Extraction","major_code":"47","employment":240,"median_wage":66972,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Structural iron and steel workers assemble metal structures; physical iron and steel erection requires human strength and dexterity.","bls_url":"https://www.bls.gov/oes/current/oes472221.htm"},{"code":"47-3011","title":"Helpers--Brickmasons, Blockmasons, Stonemasons, and Tile and Marble Setters","group":"Construction & Extraction","major_code":"47","employment":200,"median_wage":52094,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Helpers to masonry trades perform physical labor supporting bricklayers and stonemasons; physical assistance is the core function.","bls_url":"https://www.bls.gov/oes/current/oes473011.htm"},{"code":"47-3015","title":"Helpers--Pipelayers, Plumbers, Pipefitters, and Steamfitters","group":"Construction & Extraction","major_code":"47","employment":100,"median_wage":52435,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Helpers to plumbers and pipefitters assist with physical pipe installation; physical labor assistance is the core function.","bls_url":"https://www.bls.gov/oes/current/oes473015.htm"},{"code":"47-3019","title":"Helpers, Construction Trades, All Other","group":"Construction & Extraction","major_code":"47","employment":140,"median_wage":43515,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"All other construction trade helpers perform physical construction labor; hands-on physical work limits AI substitutability.","bls_url":"https://www.bls.gov/oes/current/oes473019.htm"},{"code":"47-4011","title":"Construction and Building Inspectors","group":"Construction & Extraction","major_code":"47","employment":330,"median_wage":84968,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Construction and building inspectors review construction for code compliance; inspection requires physical site visits but AI aids documentation and code analysis.","bls_url":"https://www.bls.gov/oes/current/oes474011.htm"},{"code":"47-4031","title":"Fence Erectors","group":"Construction & Extraction","major_code":"47","employment":240,"median_wage":54648,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Fence erectors install fencing systems; physical outdoor installation work is hands-on.","bls_url":"https://www.bls.gov/oes/current/oes474031.htm"},{"code":"47-4051","title":"Highway Maintenance Workers","group":"Construction & Extraction","major_code":"47","employment":330,"median_wage":56880,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Highway maintenance workers repair and maintain roadways; physical road maintenance requires human labor.","bls_url":"https://www.bls.gov/oes/current/oes474051.htm"},{"code":"47-4071","title":"Septic Tank Servicers and Sewer Pipe Cleaners","group":"Construction & Extraction","major_code":"47","employment":110,"median_wage":58156,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Septic tank servicers and sewer pipe cleaners maintain waste systems; physical sanitation work requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes474071.htm"},{"code":"47-4090","title":"Miscellaneous Construction and Related Workers","group":"Construction & Extraction","major_code":"47","employment":50,"median_wage":47590,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Miscellaneous construction and related workers perform varied construction tasks; physical construction work limits AI substitutability.","bls_url":"https://www.bls.gov/oes/current/oes474090.htm"},{"code":"49-1011","title":"First-Line Supervisors of Mechanics, Installers, and Repairers","group":"Installation, Maintenance & Repair","major_code":"49","employment":1880,"median_wage":88592,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"First-line supervisors of mechanics and repairers manage technical maintenance teams; physical shop oversight and team management require human presence.","bls_url":"https://www.bls.gov/oes/current/oes491011.htm"},{"code":"49-2011","title":"Computer, Automated Teller, and Office Machine Repairers","group":"Installation, Maintenance & Repair","major_code":"49","employment":50,"median_wage":45020,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Computer, ATM, and office machine repairers diagnose and fix equipment malfunctions; physical repair work requires human dexterity.","bls_url":"https://www.bls.gov/oes/current/oes492011.htm"},{"code":"49-2022","title":"Telecommunications Equipment Installers and Repairers, Except Line Installers","group":"Installation, Maintenance & Repair","major_code":"49","employment":350,"median_wage":71197,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Telecommunications equipment installers and repairers maintain telephone and data networks; physical equipment work and field troubleshooting require human technicians.","bls_url":"https://www.bls.gov/oes/current/oes492022.htm"},{"code":"49-2094","title":"Electrical and Electronics Repairers, Commercial and Industrial Equipment","group":"Installation, Maintenance & Repair","major_code":"49","employment":170,"median_wage":82660,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Electrical and electronics repairers fix commercial and industrial equipment; physical troubleshooting and repair require human dexterity.","bls_url":"https://www.bls.gov/oes/current/oes492094.htm"},{"code":"49-2095","title":"Electrical and Electronics Repairers, Powerhouse, Substation, and Relay","group":"Installation, Maintenance & Repair","major_code":"49","employment":50,"median_wage":98580,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Electrical repairers for powerhouse and substation equipment maintain high-voltage systems; safety-critical physical work requires skilled human technicians.","bls_url":"https://www.bls.gov/oes/current/oes492095.htm"},{"code":"49-2098","title":"Security and Fire Alarm Systems Installers","group":"Installation, Maintenance & Repair","major_code":"49","employment":200,"median_wage":63315,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Security and fire alarm system installers wire and configure safety systems; physical installation and programming require human technicians.","bls_url":"https://www.bls.gov/oes/current/oes492098.htm"},{"code":"49-3011","title":"Aircraft Mechanics and Service Technicians","group":"Installation, Maintenance & Repair","major_code":"49","employment":150,"median_wage":84870,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Aircraft mechanics and service technicians inspect and repair aircraft; safety-critical physical maintenance requires certified human technicians.","bls_url":"https://www.bls.gov/oes/current/oes493011.htm"},{"code":"49-3021","title":"Automotive Body and Related Repairers","group":"Installation, Maintenance & Repair","major_code":"49","employment":480,"median_wage":62942,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Automotive body repairers restore vehicle body damage; physical body repair requiring dexterity and craftsmanship is hands-on.","bls_url":"https://www.bls.gov/oes/current/oes493021.htm"},{"code":"49-3023","title":"Automotive Service Technicians and Mechanics","group":"Installation, Maintenance & Repair","major_code":"49","employment":2620,"median_wage":60648,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Automotive service technicians and mechanics diagnose and repair vehicles; physical repair work is hands-on though AI aids diagnostics.","bls_url":"https://www.bls.gov/oes/current/oes493023.htm"},{"code":"49-3031","title":"Bus and Truck Mechanics and Diesel Engine Specialists","group":"Installation, Maintenance & Repair","major_code":"49","employment":1240,"median_wage":68105,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Bus and truck mechanics specialize in commercial vehicle repair; physical heavy vehicle maintenance requires human technicians.","bls_url":"https://www.bls.gov/oes/current/oes493031.htm"},{"code":"49-3041","title":"Farm Equipment Mechanics and Service Technicians","group":"Installation, Maintenance & Repair","major_code":"49","employment":630,"median_wage":57238,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Farm equipment mechanics service agricultural machinery; physical equipment maintenance in field conditions requires human technicians.","bls_url":"https://www.bls.gov/oes/current/oes493041.htm"},{"code":"49-3042","title":"Mobile Heavy Equipment Mechanics, Except Engines","group":"Installation, Maintenance & Repair","major_code":"49","employment":820,"median_wage":70170,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Mobile heavy equipment mechanics maintain construction and mining equipment; physical heavy equipment work requires skilled human technicians.","bls_url":"https://www.bls.gov/oes/current/oes493042.htm"},{"code":"49-3051","title":"Motorboat Mechanics and Service Technicians","group":"Installation, Maintenance & Repair","major_code":"49","employment":30,"median_wage":65760,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Motorboat mechanics service marine engines and systems; physical marine repair requires human technicians.","bls_url":"https://www.bls.gov/oes/current/oes493051.htm"},{"code":"49-3053","title":"Outdoor Power Equipment and Other Small Engine Mechanics","group":"Installation, Maintenance & Repair","major_code":"49","employment":60,"median_wage":51480,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Outdoor power equipment mechanics repair lawn mowers and similar equipment; physical small engine repair requires human dexterity.","bls_url":"https://www.bls.gov/oes/current/oes493053.htm"},{"code":"49-3093","title":"Tire Repairers and Changers","group":"Installation, Maintenance & Repair","major_code":"49","employment":470,"median_wage":38351,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Tire repairers and changers mount and balance tires; physical tire work requires human dexterity.","bls_url":"https://www.bls.gov/oes/current/oes493093.htm"},{"code":"49-9012","title":"Control and Valve Installers and Repairers, Except Mechanical Door","group":"Installation, Maintenance & Repair","major_code":"49","employment":150,"median_wage":68733,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Control and valve installers maintain pipeline control systems; physical installation and maintenance in industrial settings require human presence.","bls_url":"https://www.bls.gov/oes/current/oes499012.htm"},{"code":"49-9021","title":"Heating, Air Conditioning, and Refrigeration Mechanics and Installers","group":"Installation, Maintenance & Repair","major_code":"49","employment":1060,"median_wage":64644,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"HVAC mechanics and installers install and service heating and cooling systems; physical installation and troubleshooting in varied settings require human technicians.","bls_url":"https://www.bls.gov/oes/current/oes499021.htm"},{"code":"49-9041","title":"Industrial Machinery Mechanics","group":"Installation, Maintenance & Repair","major_code":"49","employment":1940,"median_wage":77073,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Industrial machinery mechanics maintain factory equipment; physical maintenance in manufacturing environments requires skilled human technicians.","bls_url":"https://www.bls.gov/oes/current/oes499041.htm"},{"code":"49-9043","title":"Maintenance Workers, Machinery","group":"Installation, Maintenance & Repair","major_code":"49","employment":240,"median_wage":63794,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Maintenance workers for machinery lubricate and maintain industrial equipment; physical maintenance tasks are hands-on.","bls_url":"https://www.bls.gov/oes/current/oes499043.htm"},{"code":"49-9044","title":"Millwrights","group":"Installation, Maintenance & Repair","major_code":"49","employment":70,"median_wage":98270,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Millwrights install, align, and disassemble machinery; precision physical machinery work requires skilled human technicians.","bls_url":"https://www.bls.gov/oes/current/oes499044.htm"},{"code":"49-9051","title":"Electrical Power-Line Installers and Repairers","group":"Installation, Maintenance & Repair","major_code":"49","employment":200,"median_wage":125844,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Electrical power-line installers and repairers maintain transmission and distribution lines; physical line work in outdoor environments requires human linemen.","bls_url":"https://www.bls.gov/oes/current/oes499051.htm"},{"code":"49-9052","title":"Telecommunications Line Installers and Repairers","group":"Installation, Maintenance & Repair","major_code":"49","employment":300,"median_wage":94160,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Telecommunications line installers and repairers install and maintain communication cables; physical outside plant work requires human technicians.","bls_url":"https://www.bls.gov/oes/current/oes499052.htm"},{"code":"49-9062","title":"Medical Equipment Repairers","group":"Installation, Maintenance & Repair","major_code":"49","employment":100,"median_wage":75880,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Medical equipment repairers maintain and calibrate medical devices; technical repair in clinical settings requires human expertise and AI aids diagnostics.","bls_url":"https://www.bls.gov/oes/current/oes499062.htm"},{"code":"49-9071","title":"Maintenance and Repair Workers, General","group":"Installation, Maintenance & Repair","major_code":"49","employment":5480,"median_wage":58564,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Maintenance and repair workers perform general building maintenance tasks; physical maintenance across varied systems requires human judgment and dexterity.","bls_url":"https://www.bls.gov/oes/current/oes499071.htm"},{"code":"49-9098","title":"Helpers--Installation, Maintenance, and Repair Workers","group":"Installation, Maintenance & Repair","major_code":"49","employment":370,"median_wage":43091,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Helpers in installation, maintenance, and repair provide physical assistance; hands-on assistance is the core function.","bls_url":"https://www.bls.gov/oes/current/oes499098.htm"},{"code":"49-9099","title":"Installation, Maintenance, and Repair Workers, All Other","group":"Installation, Maintenance & Repair","major_code":"49","employment":850,"median_wage":47861,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"All other installation, maintenance, and repair workers perform physical technical tasks; hands-on work generally limits AI substitutability.","bls_url":"https://www.bls.gov/oes/current/oes499099.htm"},{"code":"51-1011","title":"First-Line Supervisors of Production and Operating Workers","group":"Production","major_code":"51","employment":2440,"median_wage":75541,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"First-line supervisors of production workers manage manufacturing floor operations; physical presence and team coordination are central alongside administrative tasks.","bls_url":"https://www.bls.gov/oes/current/oes511011.htm"},{"code":"51-2028","title":"Electrical, Electronic, and Electromechanical Assemblers, Except Coil Winders, Tapers, and Finishers","group":"Production","major_code":"51","employment":550,"median_wage":49783,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Electrical and electronic assemblers assemble components on circuit boards and systems; physical assembly precision is central though automation is advancing.","bls_url":"https://www.bls.gov/oes/current/oes512028.htm"},{"code":"51-2090","title":"Miscellaneous Assemblers and Fabricators","group":"Production","major_code":"51","employment":3370,"median_wage":44357,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Miscellaneous assemblers and fabricators perform varied assembly tasks; physical assembly in manufacturing settings limits AI substitutability.","bls_url":"https://www.bls.gov/oes/current/oes512090.htm"},{"code":"51-3011","title":"Bakers","group":"Production","major_code":"51","employment":970,"median_wage":36818,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Bakers mix and bake bread and pastry products; physical baking craft requires human presence though automation aids large-scale production.","bls_url":"https://www.bls.gov/oes/current/oes513011.htm"},{"code":"51-3021","title":"Butchers and Meat Cutters","group":"Production","major_code":"51","employment":1040,"median_wage":42477,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Butchers and meat cutters portion and prepare meat products; physical cutting requires human dexterity and judgment.","bls_url":"https://www.bls.gov/oes/current/oes513021.htm"},{"code":"51-3022","title":"Meat, Poultry, and Fish Cutters and Trimmers","group":"Production","major_code":"51","employment":310,"median_wage":37243,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Meat, poultry, and fish cutters perform high-volume cutting; physical cutting is partially automated but human oversight is essential.","bls_url":"https://www.bls.gov/oes/current/oes513022.htm"},{"code":"51-3023","title":"Slaughterers and Meat Packers","group":"Production","major_code":"51","employment":1230,"median_wage":39832,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Slaughterers and meat packers process animals in meat processing facilities; physical processing requires human labor.","bls_url":"https://www.bls.gov/oes/current/oes513023.htm"},{"code":"51-3091","title":"Food and Tobacco Roasting, Baking, and Drying Machine Operators and Tenders","group":"Production","major_code":"51","employment":240,"median_wage":45753,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Food and tobacco machine operators tend automated roasting and drying equipment; machine tending and quality monitoring require human presence.","bls_url":"https://www.bls.gov/oes/current/oes513091.htm"},{"code":"51-3092","title":"Food Batchmakers","group":"Production","major_code":"51","employment":850,"median_wage":45106,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Food batchmakers follow recipes to mix and prepare food products; physical food production requires human presence and quality judgment.","bls_url":"https://www.bls.gov/oes/current/oes513092.htm"},{"code":"51-3093","title":"Food Cooking Machine Operators and Tenders","group":"Production","major_code":"51","employment":290,"median_wage":63540,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Food cooking machine operators tend automated cooking equipment; machine monitoring and adjustment require human presence.","bls_url":"https://www.bls.gov/oes/current/oes513093.htm"},{"code":"51-3099","title":"Food Processing Workers, All Other","group":"Production","major_code":"51","employment":920,"median_wage":39735,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"All other food processing workers perform hands-on food production tasks; physical food work limits AI substitutability.","bls_url":"https://www.bls.gov/oes/current/oes513099.htm"},{"code":"51-4021","title":"Extruding and Drawing Machine Setters, Operators, and Tenders, Metal and Plastic","group":"Production","major_code":"51","employment":150,"median_wage":43517,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Extruding and drawing machine setters operate metal and plastic processing equipment; machine setup and monitoring require human technicians.","bls_url":"https://www.bls.gov/oes/current/oes514021.htm"},{"code":"51-4031","title":"Cutting, Punching, and Press Machine Setters, Operators, and Tenders, Metal and Plastic","group":"Production","major_code":"51","employment":340,"median_wage":47760,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Cutting, punching, and press machine operators process metal and plastic parts; physical machine operation and quality monitoring are hands-on.","bls_url":"https://www.bls.gov/oes/current/oes514031.htm"},{"code":"51-4033","title":"Grinding, Lapping, Polishing, and Buffing Machine Tool Setters, Operators, and Tenders, Metal and Plastic","group":"Production","major_code":"51","employment":150,"median_wage":43111,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Grinding and polishing machine operators process metal and plastic surfaces; physical machine operation requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes514033.htm"},{"code":"51-4041","title":"Machinists","group":"Production","major_code":"51","employment":390,"median_wage":48243,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Machinists set up and operate machine tools to produce precision parts; skilled physical machining requires human expertise though CNC automation is widespread.","bls_url":"https://www.bls.gov/oes/current/oes514041.htm"},{"code":"51-4072","title":"Molding, Coremaking, and Casting Machine Setters, Operators, and Tenders, Metal and Plastic","group":"Production","major_code":"51","employment":350,"median_wage":44828,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Molding, coremaking, and casting machine operators process metal and plastic; physical machine operation and quality control are hands-on.","bls_url":"https://www.bls.gov/oes/current/oes514072.htm"},{"code":"51-4081","title":"Multiple Machine Tool Setters, Operators, and Tenders, Metal and Plastic","group":"Production","major_code":"51","employment":80,"median_wage":40730,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Multiple machine tool setters and operators run varied machining equipment; physical machine operation requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes514081.htm"},{"code":"51-4111","title":"Tool and Die Makers","group":"Production","major_code":"51","employment":30,"median_wage":80280,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Tool and die makers create precision tools and dies; highly skilled physical craftsmanship with metals requires human expertise.","bls_url":"https://www.bls.gov/oes/current/oes514111.htm"},{"code":"51-4121","title":"Welders, Cutters, Solderers, and Brazers","group":"Production","major_code":"51","employment":1320,"median_wage":50578,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Welders join metal parts using various welding techniques; physical welding craft requires human skill and judgment.","bls_url":"https://www.bls.gov/oes/current/oes514121.htm"},{"code":"51-4193","title":"Plating Machine Setters, Operators, and Tenders, Metal and Plastic","group":"Production","major_code":"51","employment":80,"median_wage":45410,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Plating machine operators apply metal coatings; physical machine operation and bath monitoring require human presence.","bls_url":"https://www.bls.gov/oes/current/oes514193.htm"},{"code":"51-5111","title":"Prepress Technicians and Workers","group":"Production","major_code":"51","employment":40,"median_wage":54650,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Prepress technicians prepare digital files for printing; AI is increasingly automating preflight and color correction but technical judgment remains important.","bls_url":"https://www.bls.gov/oes/current/oes515111.htm"},{"code":"51-5112","title":"Printing Press Operators","group":"Production","major_code":"51","employment":330,"median_wage":50785,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Printing press operators set up and run printing presses; physical press operation and quality monitoring require human presence.","bls_url":"https://www.bls.gov/oes/current/oes515112.htm"},{"code":"51-6011","title":"Laundry and Dry-Cleaning Workers","group":"Production","major_code":"51","employment":530,"median_wage":36253,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Laundry and dry-cleaning workers process garments; physical sorting, washing, and folding require human presence.","bls_url":"https://www.bls.gov/oes/current/oes516011.htm"},{"code":"51-6021","title":"Pressers, Textile, Garment, and Related Materials","group":"Production","major_code":"51","employment":50,"median_wage":38250,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Pressers smooth and press garments; physical garment pressing requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes516021.htm"},{"code":"51-6031","title":"Sewing Machine Operators","group":"Production","major_code":"51","employment":120,"median_wage":42090,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Sewing machine operators stitch garments and products; physical sewing work requires human dexterity.","bls_url":"https://www.bls.gov/oes/current/oes516031.htm"},{"code":"51-6052","title":"Tailors, Dressmakers, and Custom Sewers","group":"Production","major_code":"51","employment":30,"median_wage":38730,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Tailors, dressmakers, and custom sewers create and alter garments; skilled physical sewing craft requires human expertise.","bls_url":"https://www.bls.gov/oes/current/oes516052.htm"},{"code":"51-7011","title":"Cabinetmakers and Bench Carpenters","group":"Production","major_code":"51","employment":420,"median_wage":46443,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Cabinetmakers and bench carpenters build wooden furniture and fixtures; skilled wood craftsmanship requires human expertise.","bls_url":"https://www.bls.gov/oes/current/oes517011.htm"},{"code":"51-7041","title":"Sawing Machine Setters, Operators, and Tenders, Wood","group":"Production","major_code":"51","employment":130,"median_wage":42071,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Sawing machine operators cut wood to specified dimensions; physical machine operation and lumber handling are hands-on.","bls_url":"https://www.bls.gov/oes/current/oes517041.htm"},{"code":"51-7042","title":"Woodworking Machine Setters, Operators, and Tenders, Except Sawing","group":"Production","major_code":"51","employment":250,"median_wage":42526,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Woodworking machine operators perform various wood shaping operations; physical machine operation requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes517042.htm"},{"code":"51-8021","title":"Stationary Engineers and Boiler Operators","group":"Production","major_code":"51","employment":150,"median_wage":90568,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Stationary engineers and boiler operators maintain plant heating and power systems; physical monitoring and adjustment of heavy equipment require human presence.","bls_url":"https://www.bls.gov/oes/current/oes518021.htm"},{"code":"51-8031","title":"Water and Wastewater Treatment Plant and System Operators","group":"Production","major_code":"51","employment":550,"median_wage":80766,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Water and wastewater treatment plant operators monitor and control treatment processes; AI aids monitoring but plant operations require human oversight and adjustment.","bls_url":"https://www.bls.gov/oes/current/oes518031.htm"},{"code":"51-8099","title":"Plant and System Operators, All Other","group":"Production","major_code":"51","employment":30,"median_wage":80930,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"All other plant and system operators monitor and control industrial processes; human oversight of physical industrial systems is essential.","bls_url":"https://www.bls.gov/oes/current/oes518099.htm"},{"code":"51-9011","title":"Chemical Equipment Operators and Tenders","group":"Production","major_code":"51","employment":110,"median_wage":48169,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Chemical equipment operators tend chemical processing equipment; physical monitoring and adjustment of chemical processes require human presence.","bls_url":"https://www.bls.gov/oes/current/oes519011.htm"},{"code":"51-9012","title":"Separating, Filtering, Clarifying, Precipitating, and Still Machine Setters, Operators, and Tenders","group":"Production","major_code":"51","employment":1170,"median_wage":56769,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Separating, filtering, and still machine operators tend industrial processing equipment; physical operation and monitoring require human presence.","bls_url":"https://www.bls.gov/oes/current/oes519012.htm"},{"code":"51-9021","title":"Crushing, Grinding, and Polishing Machine Setters, Operators, and Tenders","group":"Production","major_code":"51","employment":180,"median_wage":43100,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Crushing, grinding, and polishing machine operators tend size reduction equipment; physical machine operation is hands-on.","bls_url":"https://www.bls.gov/oes/current/oes519021.htm"},{"code":"51-9022","title":"Grinding and Polishing Workers, Hand","group":"Production","major_code":"51","employment":100,"median_wage":41065,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Grinding and polishing workers perform hand finishing of surfaces; physical hand work requires human dexterity.","bls_url":"https://www.bls.gov/oes/current/oes519022.htm"},{"code":"51-9023","title":"Mixing and Blending Machine Setters, Operators, and Tenders","group":"Production","major_code":"51","employment":340,"median_wage":53752,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Mixing and blending machine operators tend mixing equipment for various products; physical machine operation and quality monitoring are hands-on.","bls_url":"https://www.bls.gov/oes/current/oes519023.htm"},{"code":"51-9032","title":"Cutting and Slicing Machine Setters, Operators, and Tenders","group":"Production","major_code":"51","employment":280,"median_wage":46938,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Cutting and slicing machine operators tend cutting equipment; physical machine operation is hands-on.","bls_url":"https://www.bls.gov/oes/current/oes519032.htm"},{"code":"51-9041","title":"Extruding, Forming, Pressing, and Compacting Machine Setters, Operators, and Tenders","group":"Production","major_code":"51","employment":340,"median_wage":69515,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Extruding, forming, pressing, and compacting machine operators tend industrial forming equipment; physical machine operation requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes519041.htm"},{"code":"51-9061","title":"Inspectors, Testers, Sorters, Samplers, and Weighers","group":"Production","major_code":"51","employment":2360,"median_wage":47495,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Inspectors, testers, sorters, samplers, and weighers check product quality; physical inspection and sampling blend with AI-assisted defect detection.","bls_url":"https://www.bls.gov/oes/current/oes519061.htm"},{"code":"51-9081","title":"Dental Laboratory Technicians","group":"Production","major_code":"51","employment":80,"median_wage":46817,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Dental laboratory technicians fabricate dental prosthetics; skilled physical lab work is required though AI aids design.","bls_url":"https://www.bls.gov/oes/current/oes519081.htm"},{"code":"51-9111","title":"Packaging and Filling Machine Operators and Tenders","group":"Production","major_code":"51","employment":4470,"median_wage":50511,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Packaging and filling machine operators tend automated packaging equipment; machine monitoring and adjustment are hands-on.","bls_url":"https://www.bls.gov/oes/current/oes519111.htm"},{"code":"51-9124","title":"Coating, Painting, and Spraying Machine Setters, Operators, and Tenders","group":"Production","major_code":"51","employment":470,"median_wage":48835,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Coating, painting, and spraying machine operators apply coatings using equipment; physical machine operation and quality monitoring are hands-on.","bls_url":"https://www.bls.gov/oes/current/oes519124.htm"},{"code":"51-9161","title":"Computer Numerically Controlled Tool Operators","group":"Production","major_code":"51","employment":400,"median_wage":51506,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"CNC tool operators run computer-controlled machining equipment; machine monitoring and part quality inspection require human presence though AI aids programming.","bls_url":"https://www.bls.gov/oes/current/oes519161.htm"},{"code":"51-9162","title":"Computer Numerically Controlled Tool Programmers","group":"Production","major_code":"51","employment":30,"median_wage":65590,"growth_rate":null,"education":null,"ai_exposure":6,"ai_rationale":"CNC tool programmers write programs for computer-controlled machines; programming is knowledge work aided by CAM software and AI code generation.","bls_url":"https://www.bls.gov/oes/current/oes519162.htm"},{"code":"51-9192","title":"Cleaning, Washing, and Metal Pickling Equipment Operators and Tenders","group":"Production","major_code":"51","employment":380,"median_wage":45826,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Cleaning and metal pickling equipment operators tend industrial cleaning systems; physical machine operation is hands-on.","bls_url":"https://www.bls.gov/oes/current/oes519192.htm"},{"code":"51-9195","title":"Molders, Shapers, and Casters, Except Metal and Plastic","group":"Production","major_code":"51","employment":260,"median_wage":49870,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Molders, shapers, and casters create products from various materials; physical shaping processes require human presence.","bls_url":"https://www.bls.gov/oes/current/oes519195.htm"},{"code":"51-9196","title":"Paper Goods Machine Setters, Operators, and Tenders","group":"Production","major_code":"51","employment":440,"median_wage":54641,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Paper goods machine operators tend equipment that converts paper into products; physical machine operation and monitoring are hands-on.","bls_url":"https://www.bls.gov/oes/current/oes519196.htm"},{"code":"51-9198","title":"Helpers--Production Workers","group":"Production","major_code":"51","employment":920,"median_wage":45600,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Helpers in production provide physical assistance in manufacturing; hands-on physical assistance is the core function.","bls_url":"https://www.bls.gov/oes/current/oes519198.htm"},{"code":"51-9199","title":"Production Workers, All Other","group":"Production","major_code":"51","employment":1370,"median_wage":47105,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"All other production workers perform physical manufacturing tasks; hands-on work limits AI substitutability.","bls_url":"https://www.bls.gov/oes/current/oes519199.htm"},{"code":"53-1047","title":"First-Line Supervisors of Transportation and Material Moving Workers, Except Aircraft Cargo Handling Supervisors","group":"Transportation & Material Moving","major_code":"53","employment":3580,"median_wage":66134,"growth_rate":null,"education":null,"ai_exposure":4,"ai_rationale":"Supervisors of transportation and material moving workers manage logistics crews; team coordination and operational oversight require human judgment alongside AI-aided scheduling.","bls_url":"https://www.bls.gov/oes/current/oes531047.htm"},{"code":"53-2012","title":"Commercial Pilots","group":"Transportation & Material Moving","major_code":"53","employment":140,"median_wage":92954,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Commercial pilots fly aircraft and manage flight operations; piloting requires human judgment in dynamic conditions though automation assists.","bls_url":"https://www.bls.gov/oes/current/oes532012.htm"},{"code":"53-3031","title":"Driver/Sales Workers","group":"Transportation & Material Moving","major_code":"53","employment":1110,"median_wage":47445,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Driver/sales workers drive routes and sell products from their vehicles; physical driving and customer service are the core functions.","bls_url":"https://www.bls.gov/oes/current/oes533031.htm"},{"code":"53-3032","title":"Heavy and Tractor-Trailer Truck Drivers","group":"Transportation & Material Moving","major_code":"53","employment":15860,"median_wage":58531,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Autonomous vehicles are advancing but remain limited; current drivers handle complex real-world decisions and physical tasks beyond current AI.","bls_url":"https://www.bls.gov/oes/current/oes533032.htm"},{"code":"53-3033","title":"Light Truck Drivers","group":"Transportation & Material Moving","major_code":"53","employment":4230,"median_wage":44005,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Light truck drivers make deliveries and pickups on local routes; physical driving and delivery require human presence though route optimization is AI-assisted.","bls_url":"https://www.bls.gov/oes/current/oes533033.htm"},{"code":"53-3051","title":"Bus Drivers, School","group":"Transportation & Material Moving","major_code":"53","employment":690,"median_wage":57422,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"School bus drivers transport students safely; physical driving with child supervision requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes533051.htm"},{"code":"53-3053","title":"Shuttle Drivers and Chauffeurs","group":"Transportation & Material Moving","major_code":"53","employment":710,"median_wage":40350,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Shuttle drivers and chauffeurs transport passengers; physical driving and passenger service require human presence.","bls_url":"https://www.bls.gov/oes/current/oes533053.htm"},{"code":"53-3099","title":"Motor Vehicle Operators, All Other","group":"Transportation & Material Moving","major_code":"53","employment":90,"median_wage":58976,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"All other motor vehicle operators drive vehicles for various purposes; physical driving tasks require human presence.","bls_url":"https://www.bls.gov/oes/current/oes533099.htm"},{"code":"53-6031","title":"Automotive and Watercraft Service Attendants","group":"Transportation & Material Moving","major_code":"53","employment":420,"median_wage":38011,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Automotive and watercraft service attendants fuel vehicles and perform basic service; physical service tasks require human presence.","bls_url":"https://www.bls.gov/oes/current/oes536031.htm"},{"code":"53-6051","title":"Transportation Inspectors","group":"Transportation & Material Moving","major_code":"53","employment":40,"median_wage":66370,"growth_rate":null,"education":null,"ai_exposure":5,"ai_rationale":"Transportation inspectors examine vehicles and infrastructure for safety compliance; physical inspection requires human presence but AI aids documentation.","bls_url":"https://www.bls.gov/oes/current/oes536051.htm"},{"code":"53-7011","title":"Conveyor Operators and Tenders","group":"Transportation & Material Moving","major_code":"53","employment":200,"median_wage":51052,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Conveyor operators and tenders control automated material transport systems; physical monitoring and adjustment are hands-on.","bls_url":"https://www.bls.gov/oes/current/oes537011.htm"},{"code":"53-7021","title":"Crane and Tower Operators","group":"Transportation & Material Moving","major_code":"53","employment":50,"median_wage":59240,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Crane and tower operators lift and move heavy materials; physical equipment operation in construction and industrial settings requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes537021.htm"},{"code":"53-7051","title":"Industrial Truck and Tractor Operators","group":"Transportation & Material Moving","major_code":"53","employment":11940,"median_wage":56328,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Industrial truck and tractor operators drive forklifts and pallet jacks; physical vehicle operation in warehouses requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes537051.htm"},{"code":"53-7061","title":"Cleaners of Vehicles and Equipment","group":"Transportation & Material Moving","major_code":"53","employment":2650,"median_wage":36802,"growth_rate":null,"education":null,"ai_exposure":1,"ai_rationale":"Cleaners of vehicles and equipment wash and clean vehicles; physical cleaning work is hands-on.","bls_url":"https://www.bls.gov/oes/current/oes537061.htm"},{"code":"53-7062","title":"Laborers and Freight, Stock, and Material Movers, Hand","group":"Transportation & Material Moving","major_code":"53","employment":22530,"median_wage":45690,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Laborers and freight and material movers load and move materials by hand; physical labor is the core function.","bls_url":"https://www.bls.gov/oes/current/oes537062.htm"},{"code":"53-7063","title":"Machine Feeders and Offbearers","group":"Transportation & Material Moving","major_code":"53","employment":190,"median_wage":40445,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Machine feeders and offbearers load and unload production equipment; physical machine tending is hands-on.","bls_url":"https://www.bls.gov/oes/current/oes537063.htm"},{"code":"53-7064","title":"Packers and Packagers, Hand","group":"Transportation & Material Moving","major_code":"53","employment":6420,"median_wage":36110,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Packers and packagers pack products into containers by hand or machine; physical packing work is hands-on.","bls_url":"https://www.bls.gov/oes/current/oes537064.htm"},{"code":"53-7065","title":"Stockers and Order Fillers","group":"Transportation & Material Moving","major_code":"53","employment":12750,"median_wage":40762,"growth_rate":null,"education":null,"ai_exposure":3,"ai_rationale":"Stockers and order fillers retrieve and place products in warehouses; AI-guided picking systems are advancing but physical retrieval and stocking require human workers.","bls_url":"https://www.bls.gov/oes/current/oes537065.htm"},{"code":"53-7081","title":"Refuse and Recyclable Material Collectors","group":"Transportation & Material Moving","major_code":"53","employment":490,"median_wage":60849,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"Refuse and recyclable material collectors collect and transport waste; physical collection work requires human presence.","bls_url":"https://www.bls.gov/oes/current/oes537081.htm"},{"code":"53-7199","title":"Material Moving Workers, All Other","group":"Transportation & Material Moving","major_code":"53","employment":360,"median_wage":38191,"growth_rate":null,"education":null,"ai_exposure":2,"ai_rationale":"All other material moving workers perform physical material handling tasks; hands-on work limits AI substitutability.","bls_url":"https://www.bls.gov/oes/current/oes537199.htm"}]};
+
+  allData = data;
+
+  var sub = document.querySelector(".subtitle");
+  if (sub && data.metros) {
+    sub.textContent = data.metros.join(" · ") + " · BLS OEWS 2024";
+  }
+
+  render(data, currentMetric);
+
+  document.querySelectorAll(".toggle").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      document.querySelectorAll(".toggle").forEach(function(b) { b.classList.remove("active"); });
+      btn.classList.add("active");
+      currentMetric = btn.dataset.metric;
+      render(allData, currentMetric);
+    });
+  });
+
+  var resizeTimer;
+  window.addEventListener("resize", function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function() { render(allData, currentMetric); }, 150);
+  });
+
+  // About / Methodology modal
+  var aboutBtn = document.getElementById("about-btn");
+  var aboutModal = document.getElementById("about-modal");
+  var aboutClose = document.getElementById("about-close");
+  function openAbout() { aboutModal.hidden = false; }
+  function closeAbout() { aboutModal.hidden = true; }
+  if (aboutBtn && aboutModal && aboutClose) {
+    aboutBtn.addEventListener("click", openAbout);
+    aboutClose.addEventListener("click", closeAbout);
+    aboutModal.addEventListener("click", function(e) {
+      if (e.target === aboutModal) closeAbout();
+    });
+    document.addEventListener("keydown", function(e) {
+      if (e.key === "Escape" && !aboutModal.hidden) closeAbout();
+    });
+  }
+})();
